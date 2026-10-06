@@ -8,7 +8,52 @@ permissions:
   contents: write
 
 jobs:
+  desktop:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    # arm64 is a bonus: its failure must not hold back the x86_64 release.
+    continue-on-error: ${{ matrix.arch == 'aarch64' }}
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Tag matches desktop/package.json
+        run: |
+          want="v$(node -p 'require("./package.json").version')"
+          [ "$want" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME but desktop/package.json says $want"; exit 1; }
+      - run: npm ci
+      - run: npm test
+      - run: npm run dist
+      - name: Name the AppImage
+        run: |
+          app="$(ls dist/*.AppImage | head -n1)"
+          mv "$app" "dist/hqterm-desktop-linux-${{ matrix.arch }}.AppImage"
+          ls -la dist
+      - name: Smoke test under Xvfb
+        run: |
+          if ! command -v xvfb-run >/dev/null; then sudo apt-get update -qq && sudo apt-get install -y -qq xvfb; fi
+          HQTERM_DESKTOP_SMOKE=8000 XDG_CONFIG_HOME="$RUNNER_TEMP/cfg" xvfb-run -a "dist/hqterm-desktop-linux-${{ matrix.arch }}.AppImage" --appimage-extract-and-run --no-sandbox 2>&1 | grep -v appimage_extracted | tee smoke.log
+          grep -q "hqterm-desktop smoke: ok" smoke.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.arch }}
+          path: desktop/dist/hqterm-desktop-linux-${{ matrix.arch }}.AppImage
+
   release:
+    needs: desktop
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +73,14 @@ jobs:
             target="bun-${t%%:*}"; name="hqterm-${t##*:}"
             bun build --compile --minify --target="$target" src/main.ts --outfile "dist/$name"
           done
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: |
+          cp desktop/build/icon.png dist/hqterm-desktop.png
           cd dist && sha256sum hqterm-* > SHA256SUMS && cat SHA256SUMS
       - name: Smoke test
         run: ./dist/hqterm-linux-amd64 --version

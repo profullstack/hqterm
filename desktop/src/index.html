@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; worker-src 'self' blob:; connect-src 'self' data: blob:"
+    />
+    <title>hqterm</title>
+    <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header id="bar">
+      <div id="tabs" role="tablist"></div>
+      <button id="new" class="icon" title="New tab (Ctrl+Shift+T), or pick a host" aria-haspopup="menu">
+        <img src="icons/add.svg" alt="New" />
+      </button>
+    </header>
+    <div id="menu" role="menu" hidden></div>
+    <main id="views"></main>
+    <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script>
+    <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+    <script src="../node_modules/@xterm/addon-webgl/lib/addon-webgl.js"></script>
+    <script src="../node_modules/@xterm/addon-image/lib/addon-image.js"></script>
+    <script src="../node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script>
+    <script src="../node_modules/@xterm/addon-unicode11/lib/addon-unicode11.js"></script>
+    <script src="layout.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
