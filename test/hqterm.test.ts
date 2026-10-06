@@ -8,6 +8,7 @@ import { addUserHost, loadUserHosts, mergeHosts, parseHostsJson, validHostName }
 import { classify, listArgs, parseSessionList } from "../src/sessions.ts";
 import { initialState, render, sessionRows } from "../src/tui.ts";
 import { advice, type Facts } from "../src/doctor.ts";
+import { parseTailscalePeers, tailscaleHosts } from "../src/tailscale.ts";
 
 describe("ssh config", () => {
   test("concrete hosts only, in order, once", () => {
@@ -149,5 +150,38 @@ describe("doctor advice", () => {
   test("font missing suggests fonts install", () => {
     expect(advice(base, false).join(" ")).toContain("hqterm fonts install");
     expect(advice(base, true)).toEqual([]);
+  });
+});
+
+describe("tailscale hosts", () => {
+  const json = JSON.stringify({
+    BackendState: "Running",
+    Peer: {
+      a: { HostName: "Dev2", DNSName: "dev2.tail1234.ts.net.", TailscaleIPs: ["100.64.0.2"], Online: true },
+      b: { HostName: "laptop", DNSName: "laptop.tail1234.ts.net.", TailscaleIPs: ["100.64.0.3"], Online: false },
+      c: { HostName: "pi", DNSName: "", TailscaleIPs: ["100.64.0.4"], Online: true },
+      d: { HostName: "bad name", DNSName: "", TailscaleIPs: ["100.64.0.5"], Online: true },
+    },
+  });
+
+  test("online peers by MagicDNS short name, else machine name; offline and odd names skipped", () => {
+    expect(parseTailscalePeers(json)).toEqual(["dev2", "pi"]);
+  });
+
+  test("nothing when Tailscale is stopped or the output is not JSON", () => {
+    expect(parseTailscalePeers(JSON.stringify({ BackendState: "NeedsLogin", Peer: {} }))).toEqual([]);
+    expect(parseTailscalePeers("tailscale: not running")).toEqual([]);
+  });
+
+  test("peers come after ssh and user hosts; an ssh alias that is also a peer stays ssh", () => {
+    expect(mergeHosts(["dev2"], ["box"], ["dev2", "pi"])).toEqual([
+      { name: "dev2", source: "ssh" },
+      { name: "box", source: "user" },
+      { name: "pi", source: "tailscale" },
+    ]);
+  });
+
+  test("HQTERM_TAILSCALE=off hides them", () => {
+    expect(tailscaleHosts({ HQTERM_TAILSCALE: "off" })).toEqual([]);
   });
 });

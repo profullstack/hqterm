@@ -11,6 +11,7 @@ import { update } from "./update.ts";
 import { addUserHost, loadUserHosts, mergeHosts, validHostName } from "./hosts.ts";
 import { connect, findHqsh, installArgs, INSTALL_URL, pressEnter, runInteractive, connectArgs } from "./run.ts";
 import { sshConfigHosts } from "./sshconfig.ts";
+import { tailscaleHosts } from "./tailscale.ts";
 import { initialState, runTui } from "./tui.ts";
 import { VERSION } from "./version.ts";
 
@@ -36,13 +37,17 @@ Keys in the manager:
   Tab / arrows    move         q  quit
   In a session:   Ctrl-^ .     detach (the session keeps running)
 
-Hosts come from ~/.ssh/config and ~/.config/hqterm/hosts.json.
+Hosts come from ~/.ssh/config, ~/.config/hqterm/hosts.json and, when
+Tailscale runs here, your online tailnet machines (marked "ts";
+HQTERM_TAILSCALE=off hides them).
+Servers need only hqsh: curl -fsSL ${INSTALL_URL} | sh -s -- --server
+  (Windows: irm https://hqterm.sh/install.ps1 | iex)
 Install: curl -fsSL ${INSTALL_URL} | sh
 Desktop app: curl -fsSL ${INSTALL_URL} | sh -s -- --desktop
 `;
 
 async function manager(): Promise<number> {
-  const hosts = () => mergeHosts(sshConfigHosts(), loadUserHosts());
+  const hosts = () => mergeHosts(sshConfigHosts(), loadUserHosts(), tailscaleHosts());
   const state = initialState(hosts());
   for (;;) {
     const action = await runTui(state, {

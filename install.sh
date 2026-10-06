@@ -251,6 +251,11 @@ case ":$PATH:" in
 esac
 
 if [ "$SERVER" = 1 ]; then
+  # Sessions run under the service manager: systemd (with lingering, so they
+  # survive logout; this turns it on) or launchd. Older hqsh lacks `setup`.
+  if ! "$BIN/hqsh" server setup 2>/dev/null; then
+    say "note: this hqsh has no 'server setup'; sessions start as detached processes"
+  fi
   say "done: hqsh is ready on this host"
 else
   say "done. Try: hqterm doctor   then: hqterm"

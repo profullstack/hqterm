@@ -11,7 +11,16 @@ curl -fsSL https://hqterm.sh/install | sh
 Installs `hqterm` and `hqsh` for Linux or macOS (x86_64, arm64) into
 `~/.local/bin` (or `$HQTERM_BIN`). On a server you connect to, only hqsh is
 needed: `curl -fsSL https://hqterm.sh/install | sh -s -- --server` (the `i` key
-in hqterm does it for you).
+in hqterm does it for you). That also runs `hqsh server setup`: sessions run as
+systemd user units on Linux (lingering on, so they survive logout) and as
+launchd jobs on macOS. Windows PCs and servers:
+`irm https://hqterm.sh/install.ps1 | iex` (hqsh.exe, put on your user PATH;
+sessions run on ConPTY).
+
+When Tailscale is running, your online tailnet machines appear as hosts and
+hqsh connects over the tailnet (`--tailscale auto|on|off`).
+
+**Full documentation: https://hqterm.sh/docs** (`site/docs.html`).
 
 ## Use
 
@@ -82,7 +91,8 @@ Releases: push a `v*` tag matching package.json; CI builds
 `hqterm-{linux,darwin}-{amd64,arm64}`, `hqterm-desktop-linux-{x86_64,aarch64}.AppImage`
 and `SHA256SUMS` (bump `desktop/package.json` too).
 
-`site/index.html` is the hqterm.sh landing page; `install.sh` is served at
-https://hqterm.sh/install.
+`site/index.html` is the hqterm.sh landing page and `site/docs.html` is
+https://hqterm.sh/docs; `install.sh` is served at https://hqterm.sh/install and
+`install.ps1` at https://hqterm.sh/install.ps1.
 
 MIT.
