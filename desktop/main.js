@@ -267,6 +267,12 @@ if (!app.requestSingleInstanceLock()) {
           if (win) win.webContents.send("pty:data", id, `\r\nemoji art: ${iip(2, 1)} | image:\r\n${iip(12, 6)}\r\nafter image\r\n`);
         }, 1000);
       }, wait / 2);
+      // Split right with the real key binding: one more pane, one more PTY.
+      setTimeout(() => {
+        if (!win) return;
+        win.webContents.sendInputEvent({ type: "keyDown", keyCode: "D", modifiers: ["control", "shift"] });
+        win.webContents.sendInputEvent({ type: "keyUp", keyCode: "D", modifiers: ["control", "shift"] });
+      }, wait * 0.7);
       setTimeout(async () => {
         const shot = process.env.HQTERM_DESKTOP_SMOKE_SHOT;
         if (shot && win) {

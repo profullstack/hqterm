@@ -36,17 +36,26 @@ jobs:
       - run: npm test
       - name: Build AppImage
         run: npm run dist
-      - name: Smoke test under Xvfb (window + a PTY come up)
+      - name: Smoke test under Xvfb (window, PTYs, images, split, layout restore)
         run: |
           ls -la dist
           app="$(ls dist/*.AppImage | head -n1)"
-          HQTERM_DESKTOP_SMOKE=10000 HQTERM_DESKTOP_SMOKE_SHOT="$PWD/smoke.png" XDG_CONFIG_HOME="$RUNNER_TEMP/cfg" \
-            xvfb-run -a -s "-screen 0 1280x800x24" "$app" --appimage-extract-and-run --no-sandbox 2>&1 | grep -v appimage_extracted | tee smoke.log
-          grep -q "hqterm-desktop smoke: ok" smoke.log
+          smoke() {
+            HQTERM_DESKTOP_SMOKE=10000 HQTERM_DESKTOP_SMOKE_SHOT="$PWD/$1" XDG_CONFIG_HOME="$RUNNER_TEMP/cfg" \
+              xvfb-run -a -s "-screen 0 1280x800x24" "$app" --appimage-extract-and-run --no-sandbox 2>&1 | grep -v appimage_extracted | tee "$1.log"
+          }
+          # First launch: one shell, then Ctrl+Shift+D splits it (2 PTYs).
+          smoke smoke-1.png
+          grep -q "hqterm-desktop smoke: ok (ptys=2)" smoke-1.png.log
+          cat "$RUNNER_TEMP/cfg/hqterm/desktop-layout.json"
+          # Second launch restores both panes, then splits again (3 PTYs).
+          smoke smoke-2.png
+          grep -q "hqterm-desktop smoke: ok (ptys=3)" smoke-2.png.log
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: hqterm-desktop-smoke-screenshot
-          path: desktop/smoke.png
+          path: desktop/smoke-*.png
           retention-days: 7
       - uses: actions/upload-artifact@v4
         with:

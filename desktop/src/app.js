@@ -139,9 +139,39 @@
       }
     }
     // After the renderer, so images draw on top of it.
-    rt.term.loadAddon(new ImageAddon.ImageAddon({ iipSupport: true, sixelSupport: true, enableSizeReports: true }));
+    const images = new ImageAddon.ImageAddon({ iipSupport: true, sixelSupport: true, enableSizeReports: true });
+    rt.term.loadAddon(images);
+    iipCursorLikeITerm(rt.term, images);
     fit(rt);
     spawn(rt);
+  }
+
+  /**
+   * iTerm2, WezTerm and kitty leave the cursor just right of an inline image,
+   * and hqtui's emoji art relies on it ("hi " + art + " there"). addon-image
+   * leaves it at the image's left edge, so the next text erases the art. After
+   * an iTerm2 image (not sixel), move the cursor past it.
+   */
+  function iipCursorLikeITerm(term, addon) {
+    const storage = addon._storage;
+    if (!storage || typeof storage.addImage !== "function" || !term._core) return;
+    let pending = false;
+    // Registered after the addon, so this runs first; false lets the addon draw it.
+    term.parser.registerOscHandler(1337, (data) => {
+      pending = data.startsWith("File=");
+      return false;
+    });
+    const addImage = storage.addImage.bind(storage);
+    storage.addImage = (img) => {
+      const buffer = term._core.buffer;
+      const x0 = buffer.x;
+      addImage(img);
+      if (!pending) return;
+      pending = false;
+      const cell = addon._renderer && addon._renderer.cellSize;
+      const w = cell && cell.width > 0 ? cell.width : 10;
+      buffer.x = Math.min(x0 + Math.ceil(img.width / w), term.cols);
+    };
   }
 
   function fit(rt) {
