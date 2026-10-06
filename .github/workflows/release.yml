@@ -10,6 +10,7 @@ permissions:
 jobs:
   desktop:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - runner: ubuntu-latest
@@ -39,8 +40,10 @@ jobs:
       - run: npm run dist
       - name: Name the AppImage
         run: |
+          # electron-builder already says x86_64 for x64 AppImages, but arm64 not aarch64.
           app="$(ls dist/*.AppImage | head -n1)"
-          mv "$app" "dist/hqterm-desktop-linux-${{ matrix.arch }}.AppImage"
+          want="dist/hqterm-desktop-linux-${{ matrix.arch }}.AppImage"
+          [ "$app" = "$want" ] || mv "$app" "$want"
           ls -la dist
       - name: Smoke test under Xvfb
         run: |
