@@ -1,0 +1,39 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun test
+      - name: Tag matches package.json
+        run: |
+          want="v$(bun -e 'console.log(require("./package.json").version)')"
+          [ "$want" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME but package.json says $want"; exit 1; }
+      - name: Build binaries
+        run: |
+          mkdir -p dist
+          for t in linux-x64:linux-amd64 linux-arm64:linux-arm64 darwin-x64:darwin-amd64 darwin-arm64:darwin-arm64; do
+            target="bun-${t%%:*}"; name="hqterm-${t##*:}"
+            bun build --compile --minify --target="$target" src/main.ts --outfile "dist/$name"
+          done
+          cd dist && sha256sum hqterm-* > SHA256SUMS && cat SHA256SUMS
+      - name: Smoke test
+        run: ./dist/hqterm-linux-amd64 --version
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "hqterm $GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/hqterm-* dist/SHA256SUMS install.sh --clobber

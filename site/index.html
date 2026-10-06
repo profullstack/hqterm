@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hqterm</title>
+<meta name="description" content="hqterm: persistent terminal sessions that survive disconnects like mosh, but carry images and HD emoji. Built on hqtui and hqsh.">
+<link rel="canonical" href="https://hqterm.sh/">
+<link rel="icon" href="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/1f5a5-fe0f.png">
+<meta property="og:title" content="hqterm">
+<meta property="og:description" content="Persistent terminal sessions that survive disconnects, with images and HD emoji.">
+<meta property="og:image" content="https://raw.githubusercontent.com/profullstack/openemoji/main/png/512/1f5a5-fe0f.png">
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #121722; --line: #1f2735; --fg: #e6e9ef; --muted: #8b95a7;
+    --accent: #7aa2f7; --green: #9ece6a; --yellow: #e0af68;
+    --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 var(--sans); }
+  main { max-width: 860px; margin: 0 auto; padding: 56px 16px 72px; }
+  header { display: flex; align-items: center; gap: 18px; }
+  header img { width: 72px; height: 72px; }
+  h1 { font: 700 44px/1.1 var(--mono); margin: 0; letter-spacing: -0.02em; }
+  .tag { color: var(--muted); margin: 6px 0 0; font-size: 18px; }
+  .lede { font-size: 20px; margin: 36px 0 28px; }
+  pre, code { font-family: var(--mono); }
+  .install { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin: 0 0 8px; overflow-x: auto; }
+  .install code { user-select: all; color: var(--green); font-size: 17px; white-space: nowrap; }
+  .install code::before { content: "$ "; color: var(--muted); user-select: none; }
+  .hint { color: var(--muted); font-size: 14px; margin: 0 0 40px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 0 0 44px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+  .card img { width: 40px; height: 40px; display: block; margin-bottom: 10px; }
+  .card h3 { margin: 0 0 6px; font-size: 18px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  h2 { font: 700 22px var(--mono); margin: 0 0 14px; }
+  .usage { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; overflow-x: auto; font-size: 15px; line-height: 1.75; margin: 0 0 40px; }
+  .usage .c { color: var(--muted); }
+  .usage .k { color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; margin: 0 0 40px; font-size: 15px; }
+  td { border-top: 1px solid var(--line); padding: 8px 6px; vertical-align: top; }
+  td:first-child { font-family: var(--mono); color: var(--yellow); white-space: nowrap; width: 1%; padding-right: 18px; }
+  a { color: var(--accent); }
+  footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 20px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/1f5a5-fe0f.png" alt="desktop computer">
+    <div>
+      <h1>hqterm</h1>
+      <p class="tag">Terminal sessions that never drop. With pictures.</p>
+    </div>
+  </header>
+
+  <p class="lede">Persistent terminal sessions that survive disconnects, sleep and Wi-Fi changes, like mosh, but they carry images and HD emoji too. Pick a host, pick a session, and you are back exactly where you left off.</p>
+
+  <pre class="install"><code>curl -fsSL https://hqterm.sh/install | sh</code></pre>
+  <p class="hint">Linux and macOS, x86_64 and arm64. Installs <code>hqterm</code> and <code>hqsh</code> into ~/.local/bin. No sudo.</p>
+
+  <div class="grid">
+    <div class="card">
+      <img src="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/26a1.png" alt="">
+      <h3>Survives disconnects</h3>
+      <p>Close the laptop, change networks, reattach later. Your shell, editor and build keep running on the host.</p>
+    </div>
+    <div class="card">
+      <img src="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/1f680.png" alt="">
+      <h3>Images and HD emoji</h3>
+      <p>mosh only syncs text and drops every image. hqsh carries the raw stream, so Kitty and iTerm2 images, and our OpenEmoji art, get through.</p>
+    </div>
+    <div class="card">
+      <img src="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/1f512.png" alt="">
+      <h3>Just SSH</h3>
+      <p>Runs over your existing ssh config, keys and agent. No new ports, no UDP, no daemon to open up.</p>
+    </div>
+  </div>
+
+  <h2>Quick start</h2>
+<pre class="usage"><span class="k">hqterm</span>                      <span class="c"># hosts from ~/.ssh/config, their sessions, one click to attach</span>
+<span class="k">hqterm connect</span> dev2 main     <span class="c"># straight into session "main" on dev2</span>
+<span class="k">hqterm doctor</span>               <span class="c"># what your terminal supports, with a test image</span>
+<span class="k">hqterm fonts install</span>        <span class="c"># OpenEmoji colour font for this terminal</span>
+
+<span class="c"># on a server you connect to (hqterm does this for you with the i key):</span>
+curl -fsSL https://hqterm.sh/install | sh -s -- --server</pre>
+
+  <h2>Keys</h2>
+  <table>
+    <tr><td>Enter / click</td><td>Attach to the session (one click, no double-click)</td></tr>
+    <tr><td>n</td><td>New session (default name "main")</td></tr>
+    <tr><td>a</td><td>Add a host</td></tr>
+    <tr><td>i</td><td>Install hqsh on the selected host</td></tr>
+    <tr><td>Ctrl-^ .</td><td>Detach from a session; it keeps running</td></tr>
+    <tr><td>q</td><td>Quit</td></tr>
+  </table>
+
+  <footer>
+    Built on <a href="https://hqtui.com">hqtui</a> and <a href="https://github.com/profullstack/hqsh">hqsh</a>. Emoji art: <a href="https://github.com/profullstack/openemoji">OpenEmoji</a>.
+    Source: <a href="https://github.com/profullstack/hqterm">github.com/profullstack/hqterm</a>. MIT.
+  </footer>
+</main>
+</body>
+</html>
