@@ -260,9 +260,11 @@ if (!app.requestSingleInstanceLock()) {
         const [id, p] = [...ptys.entries()][0] || [];
         if (!p || !win) return;
         p.write("printf '\\033[2J\\033[Hhqterm smoke: emoji \\360\\237\\230\\200 \\360\\237\\226\\245\\357\\270\\217 \\342\\234\\205 wide|\\n'\r");
-        const png = fs.readFileSync(path.join(__dirname, "src", "icon.png")).toString("base64");
+        // The same escape hqtui emits (emoji art: 2 cells; then a bigger one).
+        const png = fs.readFileSync(path.join(__dirname, "src", "icon.png"));
+        const iip = (w, h) => `\x1b]1337;File=inline=1;size=${png.length};width=${w};height=${h};preserveAspectRatio=1:${png.toString("base64")}\x07`;
         setTimeout(() => {
-          if (win) win.webContents.send("pty:data", id, `\r\n\x1b]1337;File=inline=1;width=12;height=6;preserveAspectRatio=1:${png}\x07\r\nafter image\r\n`);
+          if (win) win.webContents.send("pty:data", id, `\r\nemoji art: ${iip(2, 1)} | image:\r\n${iip(12, 6)}\r\nafter image\r\n`);
         }, 1000);
       }, wait / 2);
       setTimeout(async () => {
