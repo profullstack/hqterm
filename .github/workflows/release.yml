@@ -17,6 +17,8 @@ jobs:
           - runner: ubuntu-24.04-arm
             arch: aarch64
     runs-on: ${{ matrix.runner }}
+    # arm64 is a bonus: its failure must not hold back the x86_64 release.
+    continue-on-error: ${{ matrix.arch == 'aarch64' }}
     defaults:
       run:
         working-directory: desktop
@@ -42,7 +44,8 @@ jobs:
           ls -la dist
       - name: Smoke test under Xvfb
         run: |
-          HQTERM_DESKTOP_SMOKE=8000 XDG_CONFIG_HOME="$RUNNER_TEMP/cfg" xvfb-run -a "dist/hqterm-desktop-linux-${{ matrix.arch }}.AppImage" --appimage-extract-and-run --no-sandbox 2>&1 | tee smoke.log
+          if ! command -v xvfb-run >/dev/null; then sudo apt-get update -qq && sudo apt-get install -y -qq xvfb; fi
+          HQTERM_DESKTOP_SMOKE=8000 XDG_CONFIG_HOME="$RUNNER_TEMP/cfg" xvfb-run -a "dist/hqterm-desktop-linux-${{ matrix.arch }}.AppImage" --appimage-extract-and-run --no-sandbox 2>&1 | grep -v appimage_extracted | tee smoke.log
           grep -q "hqterm-desktop smoke: ok" smoke.log
       - uses: actions/upload-artifact@v4
         with:
