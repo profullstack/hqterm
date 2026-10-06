@@ -8,6 +8,7 @@
   "homepage": "https://hqterm.sh",
   "private": true,
   "main": "main.js",
+  "desktopName": "hqterm.desktop",
   "scripts": {
     "prepare-assets": "node scripts/prepare.mjs",
     "start": "npm run prepare-assets && electron .",

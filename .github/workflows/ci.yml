@@ -40,8 +40,14 @@ jobs:
         run: |
           ls -la dist
           app="$(ls dist/*.AppImage | head -n1)"
-          HQTERM_DESKTOP_SMOKE=8000 XDG_CONFIG_HOME="$RUNNER_TEMP/cfg" xvfb-run -a "$app" --appimage-extract-and-run --no-sandbox 2>&1 | tee smoke.log
+          HQTERM_DESKTOP_SMOKE=10000 HQTERM_DESKTOP_SMOKE_SHOT="$PWD/smoke.png" XDG_CONFIG_HOME="$RUNNER_TEMP/cfg" \
+            xvfb-run -a -s "-screen 0 1280x800x24" "$app" --appimage-extract-and-run --no-sandbox 2>&1 | grep -v appimage_extracted | tee smoke.log
           grep -q "hqterm-desktop smoke: ok" smoke.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hqterm-desktop-smoke-screenshot
+          path: desktop/smoke.png
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: hqterm-desktop-linux-x86_64

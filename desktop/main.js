@@ -248,11 +248,31 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(null);
     createWindow();
     if (process.env.HQTERM_DESKTOP_SMOKE) {
-      // CI: prove the window and a PTY come up, then exit.
+      // CI: prove the window and a PTY come up, draw emoji and an iTerm2
+      // inline image, optionally screenshot it ($HQTERM_DESKTOP_SMOKE_SHOT), exit.
+      const wait = Number(process.env.HQTERM_DESKTOP_SMOKE) || 8000;
       setTimeout(() => {
+        const [id, p] = [...ptys.entries()][0] || [];
+        if (!p || !win) return;
+        p.write("printf '\\033[2J\\033[Hhqterm smoke: emoji \\360\\237\\230\\200 \\360\\237\\226\\245\\357\\270\\217 \\342\\234\\205 wide|\\n'\r");
+        const png = fs.readFileSync(path.join(__dirname, "src", "icon.png")).toString("base64");
+        setTimeout(() => {
+          if (win) win.webContents.send("pty:data", id, `\r\n\x1b]1337;File=inline=1;width=12;height=6;preserveAspectRatio=1:${png}\x07\r\nafter image\r\n`);
+        }, 1000);
+      }, wait / 2);
+      setTimeout(async () => {
+        const shot = process.env.HQTERM_DESKTOP_SMOKE_SHOT;
+        if (shot && win) {
+          try {
+            fs.writeFileSync(shot, (await win.webContents.capturePage()).toPNG());
+            console.log(`hqterm-desktop smoke: screenshot ${shot}`);
+          } catch (err) {
+            console.log(`hqterm-desktop smoke: screenshot failed: ${err && err.message}`);
+          }
+        }
         console.log(`hqterm-desktop smoke: ok (ptys=${ptys.size})`);
         app.exit(ptys.size > 0 ? 0 : 3);
-      }, Number(process.env.HQTERM_DESKTOP_SMOKE) || 8000);
+      }, wait);
     }
   });
   app.on("window-all-closed", () => app.quit());
