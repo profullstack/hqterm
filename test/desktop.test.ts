@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { desktopCandidates, desktopLaunch, findDesktop, hasDisplay, parseDesktopArgs } from "../src/desktop.ts";
+import { desktopCandidates, desktopLaunch, findDesktop, hasDisplay, hasLibfuse2, parseDesktopArgs } from "../src/desktop.ts";
 import { globBasename } from "../src/sshconfig.ts";
 import { main } from "../src/main.ts";
 
@@ -17,9 +17,13 @@ describe("hqterm desktop", () => {
 
   test("looks in $HQTERM_DESKTOP, then the install dir (Linux) or /Applications (macOS)", () => {
     expect(desktopCandidates({}, "linux", "/h")).toEqual([
+      "/h/.local/opt/hqterm-desktop/app/hqterm-desktop",
       "/h/.local/opt/hqterm-desktop/hqterm-desktop.AppImage",
       "/h/.local/opt/hqterm-desktop/hqterm-desktop",
     ]);
+    // The unpacked app (no libfuse2) wins over the AppImage beside it.
+    const both = new Set(["/h/.local/opt/hqterm-desktop/app/hqterm-desktop", "/h/.local/opt/hqterm-desktop/hqterm-desktop.AppImage"]);
+    expect(findDesktop({}, "linux", "/h", (p) => both.has(p))).toBe("/h/.local/opt/hqterm-desktop/app/hqterm-desktop");
     expect(desktopCandidates({ HQTERM_DESKTOP: "/x/app" }, "linux", "/h")[0]).toBe("/x/app");
     expect(desktopCandidates({}, "darwin", "/h")).toEqual(["/Applications/hqterm.app", "/h/Applications/hqterm.app"]);
     const have = new Set(["/h/.local/opt/hqterm-desktop/hqterm-desktop"]);
@@ -48,6 +52,13 @@ describe("hqterm desktop", () => {
       "--host",
       "dev2",
     ]);
+  });
+
+  test("libfuse2 check looks for libfuse.so.2, not fusermount", () => {
+    expect(hasLibfuse2(() => false)).toBe(false);
+    expect(hasLibfuse2((p) => p === "/usr/lib/x86_64-linux-gnu/libfuse.so.2")).toBe(true);
+    expect(hasLibfuse2((p) => p === "/usr/lib/libfuse.so.2")).toBe(true);
+    expect(hasLibfuse2((p) => p.endsWith("libfuse3.so.3"))).toBe(false);
   });
 
   test("display check", () => {

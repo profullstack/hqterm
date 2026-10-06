@@ -40,7 +40,9 @@ hqterm desktop
 ```
 
 The installer puts the AppImage in `~/.local/opt/hqterm-desktop/` and adds a
-launcher entry (`~/.local/share/applications/hqterm.desktop`). A plain install
+launcher entry (`~/.local/share/applications/hqterm.desktop`). Where libfuse2
+is missing (current Ubuntu/Kubuntu ship only fuse3) it unpacks the app once into
+`~/.local/opt/hqterm-desktop/app/` and launches that instead. A plain install
 does this too on Linux when `$DISPLAY` or `$WAYLAND_DISPLAY` is set;
 `--no-desktop` skips it.
 
