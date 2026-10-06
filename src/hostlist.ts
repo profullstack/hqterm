@@ -4,9 +4,10 @@
  */
 import { loadUserHosts, mergeHosts, validHostName } from "./hosts.ts";
 import { sshConfigHosts } from "./sshconfig.ts";
+import { tailscaleHosts } from "./tailscale.ts";
 
 export function listHosts(): string[] {
-  return mergeHosts(sshConfigHosts(), loadUserHosts()).map((h) => h.name);
+  return mergeHosts(sshConfigHosts(), loadUserHosts(), tailscaleHosts()).map((h) => h.name);
 }
 
 export { validHostName };

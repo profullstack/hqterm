@@ -19,6 +19,23 @@ jobs:
       - run: sh -n install.sh && bash -n install.sh
       - run: bun build --compile src/main.ts --outfile dist/hqterm && ./dist/hqterm --version
 
+  # The Windows installer for real: download, verify, install, PATH, twice
+  # (a re-run over an existing hqsh.exe must work too).
+  windows-install:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install.ps1 (Windows PowerShell)
+        shell: powershell
+        run: ./install.ps1
+      - name: install.ps1 again (pwsh), then hqsh runs from the user PATH
+        shell: pwsh
+        run: |
+          ./install.ps1
+          $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + $env:Path
+          hqsh version
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
   desktop:
     runs-on: ubuntu-latest
     defaults:

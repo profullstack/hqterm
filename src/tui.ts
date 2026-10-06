@@ -126,7 +126,7 @@ export function render({ ui, width, theme }: Pick<RenderArgs, "ui" | "width" | "
             glyph: icon("server"),
             iconName: "server",
             label: h.name,
-            note: h.source === "user" ? "+" : undefined,
+            note: h.source === "user" ? "+" : h.source === "tailscale" ? "ts" : undefined,
           }));
           drawRows(s, rows, state.hostIndex, state.focus === "hosts", state.hover?.pane === "hosts" ? state.hover.row : undefined, state.images);
           const r = s.hitRect();

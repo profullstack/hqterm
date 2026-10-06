@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hqterm docs: install, hqterm, hqsh, servers, desktop</title>
+<meta name="description" content="Everything hqterm and hqsh do: install on Linux, macOS and Windows, sessions, shared attach, Tailscale, systemd/launchd hosts, the desktop app, and troubleshooting.">
+<link rel="canonical" href="https://hqterm.sh/docs">
+<link rel="icon" href="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/1f5a5-fe0f.png">
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #121722; --line: #1f2735; --fg: #e6e9ef; --muted: #8b95a7;
+    --accent: #7aa2f7; --green: #9ece6a; --yellow: #e0af68;
+    --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.65 var(--sans); }
+  .wrap { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 40px; max-width: 1120px; margin: 0 auto; padding: 40px 16px 72px; }
+  nav { position: sticky; top: 24px; align-self: start; font-size: 14px; }
+  nav a { display: block; color: var(--muted); text-decoration: none; padding: 3px 0; }
+  nav a:hover { color: var(--fg); }
+  nav .home { font: 700 20px var(--mono); color: var(--fg); margin-bottom: 14px; }
+  @media (max-width: 820px) { .wrap { grid-template-columns: 1fr; } nav { position: static; } }
+  h1 { font: 700 34px/1.15 var(--mono); margin: 0 0 8px; }
+  h2 { font: 700 22px var(--mono); margin: 48px 0 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+  h3 { font-size: 17px; margin: 26px 0 8px; }
+  p, li { color: #cfd5e1; }
+  .lede { color: var(--muted); margin: 0 0 8px; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font: 14px/1.6 var(--mono); }
+  code { font-family: var(--mono); font-size: 0.92em; background: var(--panel); padding: 1px 5px; border-radius: 4px; }
+  pre code { background: none; padding: 0; }
+  .c { color: var(--muted); }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 16px; font-size: 14.5px; }
+  th, td { border-top: 1px solid var(--line); padding: 7px 8px; vertical-align: top; text-align: left; }
+  th { color: var(--muted); font-weight: 600; }
+  td:first-child { font-family: var(--mono); color: var(--yellow); white-space: nowrap; }
+  a { color: var(--accent); }
+  .note { border-left: 3px solid var(--accent); padding: 4px 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav>
+  <a class="home" href="/">hqterm</a>
+  <a href="#install">Install</a>
+  <a href="#hqterm">hqterm</a>
+  <a href="#manager">Session manager</a>
+  <a href="#hqsh">hqsh</a>
+  <a href="#shared">Shared sessions</a>
+  <a href="#tailscale">Tailscale</a>
+  <a href="#servers">Servers</a>
+  <a href="#windows">Windows hosts</a>
+  <a href="#fleet">A whole fleet</a>
+  <a href="#desktop">Desktop app</a>
+  <a href="#images">Images and emoji</a>
+  <a href="#env">Environment</a>
+  <a href="#troubleshooting">Troubleshooting</a>
+  <a href="#how">How it works</a>
+  <a href="#uninstall">Update, uninstall</a>
+</nav>
+<main>
+<h1>hqterm docs</h1>
+<p class="lede">hqterm is the app you use. hqsh is the engine: it keeps a session alive on the host and reconnects to it. Both are free and MIT-licensed. Source: <a href="https://github.com/profullstack/hqterm">hqterm</a>, <a href="https://github.com/profullstack/hqsh">hqsh</a>.</p>
+
+<h2 id="install">Install</h2>
+<table>
+  <tr><th>Where</th><th>Command</th><th>Installs</th></tr>
+  <tr><td>Your Linux or macOS machine</td><td><code>curl -fsSL https://hqterm.sh/install | sh</code></td><td>hqterm and hqsh in <code>~/.local/bin</code>, plus the desktop app on a Linux desktop</td></tr>
+  <tr><td>A Linux or macOS server</td><td><code>curl -fsSL https://hqterm.sh/install | sh -s -- --server</code></td><td>hqsh only. It also runs <code>hqsh server setup</code>, which turns on systemd lingering.</td></tr>
+  <tr><td>Windows (PC or server)</td><td><code>irm https://hqterm.sh/install.ps1 | iex</code></td><td>hqsh.exe in <code>~\.local\bin</code>, added to your user PATH</td></tr>
+  <tr><td>Desktop app only</td><td><code>curl -fsSL https://hqterm.sh/install | sh -s -- --desktop</code></td><td>The Linux AppImage in <code>~/.local/opt/hqterm-desktop</code>, plus a launcher entry</td></tr>
+</table>
+<p>Nothing needs sudo or admin rights, and the installers are safe to run again. Every download is checked against the release's <code>SHA256SUMS</code>. hqsh must be installed on both ends: the plain install covers your machine, and <code>--server</code> covers each host.</p>
+<table>
+  <tr><th>install.sh option</th><th></th></tr>
+  <tr><td>--server</td><td>Install hqsh only, for hosts you connect to</td></tr>
+  <tr><td>--desktop / --no-desktop</td><td>Always or never install the desktop app. By default it is installed on Linux when a display is present.</td></tr>
+  <tr><td>--bin=DIR</td><td>Install into DIR instead of <code>~/.local/bin</code> (or <code>$HQTERM_BIN</code>)</td></tr>
+  <tr><td>HQTERM_VERSION, HQSH_VERSION</td><td>Pin a release, for example <code>HQSH_VERSION=v0.3.0</code></td></tr>
+</table>
+
+<h2 id="hqterm">hqterm</h2>
+<pre><code>hqterm                          <span class="c"># the session manager (below)</span>
+hqterm connect &lt;host&gt; [name]    <span class="c"># attach to (or create) session name (default main) on host</span>
+hqterm desktop [--host H] [--session S]   <span class="c"># the desktop app, optionally attached to H/S</span>
+hqterm doctor [--try kitty|iterm]         <span class="c"># what this terminal supports, with a test image</span>
+hqterm fonts install|status|remove        <span class="c"># the OpenEmoji colour font</span>
+hqterm update [--check] [--force]         <span class="c"># update hqterm, hqsh and the desktop app in place</span>
+hqterm --version | --help</code></pre>
+<p>Hosts come from <code>~/.ssh/config</code> (concrete <code>Host</code> entries), from <code>~/.config/hqterm/hosts.json</code> (hosts you add with <code>a</code>), and, when Tailscale is running, from your online tailnet machines, marked <code>ts</code>.</p>
+
+<h2 id="manager">The session manager</h2>
+<table>
+  <tr><th>Key</th><th></th></tr>
+  <tr><td>Enter / click</td><td>Attach to the selected session (one click, no double-click)</td></tr>
+  <tr><td>n</td><td>New session on the host (default name <code>main</code>)</td></tr>
+  <tr><td>a</td><td>Add a host (saved to hosts.json)</td></tr>
+  <tr><td>i</td><td>Install hqsh on the selected host over ssh</td></tr>
+  <tr><td>r</td><td>Refresh the session list</td></tr>
+  <tr><td>Tab / arrows</td><td>Move between hosts and sessions</td></tr>
+  <tr><td>Ctrl-^ then .</td><td>Inside a session: detach and return to hqterm. The session keeps running.</td></tr>
+  <tr><td>q</td><td>Quit</td></tr>
+</table>
+
+<h2 id="hqsh">hqsh</h2>
+<pre><code>hqsh [user@]host [--session NAME] [--steal | --read-only] [--tailscale auto|on|off] [-- ssh flags...]
+
+hqsh dev2                    <span class="c"># connect (or resume) session "main" on dev2</span>
+hqsh dev2 -s work            <span class="c"># another session</span>
+hqsh dev2 -- -p 2202 -i ~/.ssh/key   <span class="c"># extra ssh flags after --</span>
+hqsh version</code></pre>
+<p>Close the laptop, change networks, lose Wi-Fi: when the connection comes back, hqsh reconnects with backoff (0.5 s, doubling up to 10 s) and replays exactly the output you missed, from a numbered buffer on the host. It never repeats output and never leaves a gap. If you were away so long that the buffer moved on, full-screen programs are asked to repaint.</p>
+<table>
+  <tr><th>Key / result</th><th></th></tr>
+  <tr><td>Ctrl-^ then .</td><td>Detach. The shell keeps running, and <code>hqsh host</code> picks it up again.</td></tr>
+  <tr><td>Ctrl-^ Ctrl-^</td><td>Send a literal Ctrl-^</td></tr>
+  <tr><td>exit status</td><td>When the shell exits, hqsh exits with the shell's status (0 when you detach)</td></tr>
+</table>
+<p>hqsh uses your ssh as it is: <code>~/.ssh/config</code>, keys, agent, ProxyJump, known_hosts. It opens no port, needs no UDP, and runs no service you have to expose.</p>
+
+<h2 id="shared">Shared sessions, like tmux</h2>
+<p>Any number of clients can attach to one session at once. They all see the output, any of them can type, and the window is the smallest of their sizes.</p>
+<pre><code>hqsh dev2 --read-only        <span class="c"># -r: watch; your keys are not sent</span>
+hqsh dev2 --steal            <span class="c"># -d: detach everyone else first (tmux attach -d)</span></code></pre>
+<p>A slow client never stalls the others: it falls behind on its own, and after a gap it resumes like any reconnect. <code>--steal</code> applies to the first connection only, so a reconnect never kicks anyone. In the desktop app, splitting a remote pane opens a new session (<code>main-2</code>, ...). Opening the same host and session in two panes or two windows gives you a shared view.</p>
+<p class="note"><code>hqterm connect</code> always attaches normally. For <code>--steal</code> or <code>--read-only</code>, run <code>hqsh</code> directly.</p>
+
+<h2 id="tailscale">Tailscale</h2>
+<p>If Tailscale is running on your machine and the host is an online peer on your tailnet, hqsh connects over the peer's tailnet address. That path survives network changes better than a public IP and needs no open port.</p>
+<ul>
+  <li><b>Matching:</b> a host counts as a peer if its alias is the peer's machine name, MagicDNS name or tailnet IP, or if your ssh alias resolves to one of those.</li>
+  <li><b>What changes:</b> only the address (<code>-o HostName=</code>). The user, port and keys still come from your ssh config, and <code>HostKeyAlias</code> keeps your known_hosts entry.</li>
+  <li><b>Fallback:</b> if the tailnet path fails on the first connect, hqsh uses the normal route. While reconnecting, it alternates between the two, so whichever network is up wins.</li>
+</ul>
+<pre><code>hqsh dev2                    <span class="c"># auto (default): the tailnet when dev2 is a peer</span>
+hqsh dev2 --tailscale on     <span class="c"># require it; fail if dev2 is not a peer</span>
+hqsh dev2 --tailscale off    <span class="c"># never (or HQSH_TAILSCALE=off)</span></code></pre>
+<p>hqterm also lists your online tailnet machines as hosts. Set <code>HQTERM_TAILSCALE=off</code> to hide them.</p>
+
+<h2 id="servers">Servers: what runs on the host</h2>
+<p>There is nothing to open or enable. When you connect, ssh runs <code>hqsh server attach SESSION</code>. If the session's daemon is not running, attach starts it under the OS service manager:</p>
+<table>
+  <tr><th>Host</th><th>The session runs as</th><th>Survives logout</th></tr>
+  <tr><td>Linux with systemd</td><td>A user unit, <code>hqsh-&lt;session&gt;.service</code></td><td>Yes, with lingering on</td></tr>
+  <tr><td>macOS</td><td>A launchd job, <code>sh.hqterm.hqsh.&lt;session&gt;</code></td><td>Yes</td></tr>
+  <tr><td>Windows 10 1809+ / Server 2019+</td><td>A process outside the ssh connection's job, on a ConPTY</td><td>Yes</td></tr>
+  <tr><td>Anything else</td><td>A detached process</td><td>Unless the OS kills it</td></tr>
+</table>
+<pre><code>hqsh server setup            <span class="c"># how sessions start here; turns lingering on where systemd needs it</span>
+hqsh server setup --check    <span class="c"># report only</span>
+hqsh server list [--json]    <span class="c"># live sessions and how many clients each has</span>
+systemctl --user status 'hqsh-*'     <span class="c"># Linux: the units</span>
+journalctl --user -u 'hqsh-*'        <span class="c"># and their logs</span>
+systemctl --user stop hqsh-main.service   <span class="c"># end a session (its shell gets SIGTERM)</span></code></pre>
+<p><b>Lingering</b> (<code>loginctl enable-linger</code>) keeps your systemd user manager running after your last logout. Without it, logind stops your units when you log out, so until it is on hqsh falls back to a detached process. <code>--server</code> installs and <code>hqsh server setup</code> turn it on. If your distribution does not allow that for yourself, root can run <code>loginctl enable-linger USER</code>.</p>
+<p>On the host, hqsh can live anywhere on the PATH, or in <code>~/.local/bin</code>. The client tries <code>~/.local/bin/hqsh</code> too, because ssh commands often lack that directory on their PATH. Sockets go in <code>$XDG_RUNTIME_DIR/hqsh</code> (else <code>~/.local/state/hqsh</code>), mode 0700. Each session runs your login shell (<code>$SHELL -l</code>) in your home directory, with <code>HQSH_SESSION</code> set to the session name.</p>
+
+<h2 id="windows">Windows hosts</h2>
+<ol>
+  <li>Enable the OpenSSH server, as Administrator: <code>Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0</code>, then <code>Start-Service sshd; Set-Service sshd -StartupType Automatic</code>.</li>
+  <li>As the user you will log in as: <code>irm https://hqterm.sh/install.ps1 | iex</code>.</li>
+  <li>From your machine: <code>hqsh winbox</code> or <code>hqterm connect winbox</code>.</li>
+</ol>
+<p>Sessions run PowerShell 7 (<code>pwsh</code>) when it is installed, else Windows PowerShell, else <code>cmd.exe</code>. <code>HQSH_SHELL</code> picks another. Win32-OpenSSH ends everything in a connection's job when it disconnects, so hqsh starts the session daemon outside that job: by breakaway when the job allows it, else through WMI (<code>Win32_Process.Create</code>). <code>hqsh server setup</code> reports which applies.</p>
+
+<h2 id="fleet">A whole fleet</h2>
+<p>Run <code>curl -fsSL https://hqterm.sh/install | sh -s -- --server</code> on each host, as each user that will connect. To do it for every account on a box at once, as root, run <a href="https://github.com/profullstack/cli-tools">cli-tools</a>' <code>root-ubuntu.sh</code>. It installs hqsh for root and every login, does nothing when hqsh is already current, and enables lingering.</p>
+<pre><code>for h in web1 web2 db1; do ssh "$h" 'curl -fsSL https://hqterm.sh/install | sh -s -- --server'; done</code></pre>
+
+<h2 id="desktop">The desktop app</h2>
+<p>hqterm's own terminal window (Electron and xterm.js with WebGL): tabs, split panes that come back where you left them, and hqtui/qc images and HD emoji drawn in full. Linux x86_64 and arm64.</p>
+<table>
+  <tr><th>Key</th><th></th></tr>
+  <tr><td>Ctrl+Shift+T / W</td><td>New tab / close tab. Ctrl+Tab and Ctrl+PgUp/PgDn switch tabs.</td></tr>
+  <tr><td>Ctrl+Shift+D / E</td><td>Split right / split down. Splitting a remote pane opens a new session on that host.</td></tr>
+  <tr><td>Ctrl+Shift+Arrows</td><td>Move between panes (or click). Drag a divider to resize.</td></tr>
+  <tr><td>Ctrl+Shift+X</td><td>Close the pane</td></tr>
+  <tr><td>Ctrl+Shift+C / V</td><td>Copy / paste</td></tr>
+  <tr><td>Ctrl+= / Ctrl+- / Ctrl+0</td><td>Zoom in / out / reset</td></tr>
+</table>
+<p>The <b>+</b> button opens a shell, the session manager, or any host (as <code>hqsh host --session main</code>). The layout (tabs, splits, each remote pane's host and session) is saved to <code>~/.config/hqterm/desktop-layout.json</code>. The next launch reattaches every remote pane; local panes come back as fresh shells.</p>
+<p><b>Settings</b> live in <code>~/.config/hqterm/desktop.json</code>:</p>
+<pre><code>{ "fontFamily": "JetBrains Mono", "fontSize": 15, "theme": { "background": "#000" }, "restore": true, "gpu": true }</code></pre>
+<p>The default font size is 15. <code>"gpu": false</code> turns hardware acceleration off. Each start writes GPU status to <code>~/.config/hqterm/desktop.log</code>. Every pane gets <code>TERM_PROGRAM=hqterm</code>, <code>HQTUI_IMAGES=iterm</code> and <code>QC_HD=iterm</code>.</p>
+
+<h2 id="images">Images and HD emoji</h2>
+<p>hqsh carries the raw terminal stream, so Kitty graphics, iTerm2 inline images and sixel reach your terminal. mosh cannot do this: it syncs only text and drops every image. Supported terminals: the hqterm desktop app, Kitty, Ghostty, WezTerm, iTerm2, Rio and Windows Terminal. <code>hqterm doctor</code> shows what yours supports, and <code>hqterm fonts install</code> adds the OpenEmoji colour font.</p>
+
+<h2 id="env">Environment variables</h2>
+<table>
+  <tr><th>Variable</th><th></th></tr>
+  <tr><td>HQSH_TAILSCALE</td><td><code>auto</code> (default), <code>on</code> or <code>off</code></td></tr>
+  <tr><td>HQSH_SUPERVISOR</td><td>On the host: <code>auto</code> (default), <code>systemd</code>, <code>launchd</code> or <code>fork</code></td></tr>
+  <tr><td>HQSH_SHELL</td><td>On the host: the session's shell, instead of <code>$SHELL</code> (or PowerShell/cmd on Windows)</td></tr>
+  <tr><td>HQSH_SESSION</td><td>Set inside every session to its name</td></tr>
+  <tr><td>HQTERM_TAILSCALE</td><td><code>off</code> hides tailnet machines from hqterm's host list</td></tr>
+  <tr><td>HQTERM_BIN</td><td>The install directory (default <code>~/.local/bin</code>)</td></tr>
+  <tr><td>HQTERM_VERSION / HQSH_VERSION</td><td>Pin the installers to a release</td></tr>
+</table>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3>hqsh: could not reach HOST: the connection closed (status 1)</h3>
+<p>ssh connected, but the host did not run hqsh. Usually the port you reached is not a shell: an app on port 22, or a box whose real sshd is on another port. Check with <code>ssh HOST echo ok</code>. If that does not print <code>ok</code>, point an ssh alias at the right port and user (for example <code>Port 2202</code>, <code>User root</code>) and connect to the alias.</p>
+<h3>HOST has no hqsh</h3>
+<p>Install it on the host: <code>ssh HOST 'curl -fsSL https://hqterm.sh/install | sh -s -- --server'</code>, or press <code>i</code> in the session manager. On Windows, run install.ps1 there.</p>
+<h3>Sessions disappear when I log out of the server</h3>
+<p>Run <code>hqsh server setup</code> on the host. If it cannot enable lingering itself, ask root for <code>loginctl enable-linger USER</code>.</p>
+<h3>Images or emoji art do not show</h3>
+<p>Run <code>hqterm doctor</code>. Under mosh, images can never work; use hqsh instead. Under tmux, keep <code>allow-passthrough on</code>.</p>
+<h3>The desktop app redraws slowly</h3>
+<p>Check <code>~/.config/hqterm/desktop.log</code>. If <code>webgl</code> is not <code>enabled</code>, the GPU is blocklisted or missing and panes use the slower renderer. Update your graphics drivers, or file an issue with the log attached.</p>
+
+<h2 id="how">How it works</h2>
+<pre><code>your terminal ── hqsh ══ ssh ══ hqsh server attach ── unix socket ── session daemon ── PTY/ConPTY ── your shell
+                                                                    (systemd unit / launchd job / outside the ssh job)</code></pre>
+<p>The daemon owns the shell and outlives connections. Output goes into a numbered ring buffer, and clients acknowledge what they have printed. On reconnect, the client says where it stopped and gets exactly the rest. Full detail: <a href="https://github.com/profullstack/hqsh/blob/main/docs/protocol.md">protocol.md</a>.</p>
+
+<h2 id="uninstall">Update and uninstall</h2>
+<pre><code>hqterm update                <span class="c"># everything, in place (--check: just compare versions)</span>
+curl -fsSL https://hqterm.sh/install | sh -s -- --server   <span class="c"># a host: run it again</span>
+
+<span class="c"># uninstall (Linux/macOS)</span>
+rm -f ~/.local/bin/hqterm ~/.local/bin/hqsh
+rm -rf ~/.local/opt/hqterm-desktop ~/.config/hqterm
+rm -f ~/.local/share/applications/hqterm.desktop ~/.local/share/icons/hqterm.png
+<span class="c"># Windows: Remove-Item ~\.local\bin\hqsh.exe, then remove that folder from your user PATH</span></code></pre>
+</main>
+</div>
+</body>
+</html>

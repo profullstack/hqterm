@@ -8,7 +8,7 @@ import { join } from "node:path";
 
 export interface Host {
   name: string;
-  source: "ssh" | "user";
+  source: "ssh" | "user" | "tailscale";
 }
 
 export function configDir(env = process.env, home = homedir()): string {
@@ -35,12 +35,17 @@ export function parseHostsJson(text: string): string[] {
   return names;
 }
 
-/** ssh config hosts first, then the user's own, each name once. */
-export function mergeHosts(sshHosts: string[], userHosts: string[]): Host[] {
+/**
+ * ssh config hosts first, then the user's own, then Tailscale peers, each
+ * name once (an ssh alias that is also a peer stays an ssh host; hqsh still
+ * routes it over the tailnet).
+ */
+export function mergeHosts(sshHosts: string[], userHosts: string[], tailnet: string[] = []): Host[] {
   const out: Host[] = [];
   const seen = new Set<string>();
   for (const name of sshHosts) if (!seen.has(name)) (seen.add(name), out.push({ name, source: "ssh" }));
   for (const name of userHosts) if (!seen.has(name)) (seen.add(name), out.push({ name, source: "user" }));
+  for (const name of tailnet) if (!seen.has(name)) (seen.add(name), out.push({ name, source: "tailscale" }));
   return out;
 }
 

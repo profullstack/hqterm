@@ -3,45 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hqterm</title>
-<meta name="description" content="hqterm: persistent terminal sessions that survive disconnects like mosh, but carry images and HD emoji. Built on hqtui and hqsh.">
+<title>hqterm: terminal sessions that never drop, on every machine you own</title>
+<meta name="description" content="hqterm replaces mosh and tmux: persistent, shareable terminal sessions over plain ssh that survive sleep and network changes, carry images and HD emoji, and run on Linux, macOS and Windows hosts, with Tailscale when you have it.">
 <link rel="canonical" href="https://hqterm.sh/">
 <link rel="icon" href="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/1f5a5-fe0f.png">
-<meta property="og:title" content="hqterm">
-<meta property="og:description" content="Persistent terminal sessions that survive disconnects, with images and HD emoji.">
+<meta property="og:title" content="hqterm: terminal sessions that never drop">
+<meta property="og:description" content="Like mosh and tmux in one, over plain ssh, with images and HD emoji. Linux, macOS and Windows hosts. Free and open source.">
 <meta property="og:image" content="https://raw.githubusercontent.com/profullstack/openemoji/main/png/512/1f5a5-fe0f.png">
 <style>
   :root {
     --bg: #0b0e14; --panel: #121722; --line: #1f2735; --fg: #e6e9ef; --muted: #8b95a7;
-    --accent: #7aa2f7; --green: #9ece6a; --yellow: #e0af68;
+    --accent: #7aa2f7; --green: #9ece6a; --yellow: #e0af68; --red: #f7768e;
     --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 var(--sans); }
-  main { max-width: 860px; margin: 0 auto; padding: 56px 16px 72px; }
+  main { max-width: 920px; margin: 0 auto; padding: 56px 16px 72px; }
   header { display: flex; align-items: center; gap: 18px; }
   header img { width: 72px; height: 72px; }
   h1 { font: 700 44px/1.1 var(--mono); margin: 0; letter-spacing: -0.02em; }
   .tag { color: var(--muted); margin: 6px 0 0; font-size: 18px; }
-  .lede { font-size: 20px; margin: 36px 0 28px; }
+  .lede { font-size: 22px; line-height: 1.5; margin: 36px 0 28px; }
+  .lede b { color: var(--green); font-weight: 600; }
   pre, code { font-family: var(--mono); }
-  .install { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin: 0 0 8px; overflow-x: auto; }
-  .install code { user-select: all; color: var(--green); font-size: 17px; white-space: nowrap; }
+  .install { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; margin: 0 0 8px; overflow-x: auto; }
+  .install code { user-select: all; color: var(--green); font-size: 16px; white-space: nowrap; }
   .install code::before { content: "$ "; color: var(--muted); user-select: none; }
-  .hint { color: var(--muted); font-size: 14px; margin: 0 0 40px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 0 0 44px; }
+  .install.ps code::before { content: "PS> "; }
+  .hint { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; margin: 22px 0 48px; }
+  .btn { display: inline-block; padding: 10px 18px; border-radius: 8px; font-weight: 600; text-decoration: none; border: 1px solid var(--line); color: var(--fg); background: var(--panel); }
+  .btn.primary { background: var(--accent); color: #0b0e14; border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 0 0 48px; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
   .card img { width: 40px; height: 40px; display: block; margin-bottom: 10px; }
   .card h3 { margin: 0 0 6px; font-size: 18px; }
   .card p { margin: 0; color: var(--muted); font-size: 15px; }
-  h2 { font: 700 22px var(--mono); margin: 0 0 14px; }
-  .usage { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; overflow-x: auto; font-size: 15px; line-height: 1.75; margin: 0 0 40px; }
+  h2 { font: 700 24px var(--mono); margin: 0 0 14px; }
+  .section { margin: 0 0 48px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { border-top: 1px solid var(--line); padding: 9px 8px; text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  td.y { color: var(--green); }
+  td.n { color: var(--red); }
+  td.m { color: var(--yellow); }
+  .usage { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; overflow-x: auto; font-size: 15px; line-height: 1.75; }
   .usage .c { color: var(--muted); }
   .usage .k { color: var(--accent); }
-  table { border-collapse: collapse; width: 100%; margin: 0 0 40px; font-size: 15px; }
-  td { border-top: 1px solid var(--line); padding: 8px 6px; vertical-align: top; }
-  td:first-child { font-family: var(--mono); color: var(--yellow); white-space: nowrap; width: 1%; padding-right: 18px; }
   a { color: var(--accent); }
   footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 20px; }
 </style>
@@ -52,69 +61,91 @@
     <img src="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/1f5a5-fe0f.png" alt="desktop computer">
     <div>
       <h1>hqterm</h1>
-      <p class="tag">Terminal sessions that never drop. With pictures.</p>
+      <p class="tag">Terminal sessions that never drop. On every machine you own.</p>
     </div>
   </header>
 
-  <p class="lede">Persistent terminal sessions that survive disconnects, sleep and Wi-Fi changes, like mosh, but they carry images and HD emoji too. Pick a host, pick a session, and you are back exactly where you left off.</p>
+  <p class="lede">Close the laptop on Wi-Fi, open it on 5G, and your shell, your editor and that 40-minute build are <b>exactly where you left them</b>. hqterm does what mosh and tmux do together, over the ssh you already have. It carries images and HD emoji too, and it works on Linux, macOS and Windows hosts.</p>
 
   <pre class="install"><code>curl -fsSL https://hqterm.sh/install | sh</code></pre>
-  <p class="hint">Linux and macOS, x86_64 and arm64. Installs <code>hqterm</code> and <code>hqsh</code> into ~/.local/bin. No sudo.</p>
+  <p class="hint">Linux and macOS, x86_64 and arm64. Installs <code>hqterm</code> and <code>hqsh</code> into ~/.local/bin, no sudo. On each server: <code>curl -fsSL https://hqterm.sh/install | sh -s -- --server</code></p>
+  <pre class="install ps"><code>irm https://hqterm.sh/install.ps1 | iex</code></pre>
+  <p class="hint">Windows PCs and servers, x64 and ARM64. No admin.</p>
+
+  <div class="cta">
+    <a class="btn primary" href="/docs">Read the docs</a>
+    <a class="btn" href="https://github.com/profullstack/hqterm">GitHub</a>
+    <a class="btn" href="https://github.com/profullstack/hqterm/releases/latest/download/hqterm-desktop-linux-x86_64.AppImage">Desktop app (Linux)</a>
+  </div>
 
   <div class="grid">
     <div class="card">
       <img src="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/26a1.png" alt="">
-      <h3>Survives disconnects</h3>
-      <p>Close the laptop, change networks, reattach later. Your shell, editor and build keep running on the host.</p>
+      <h3>Never lose a session</h3>
+      <p>Sleep, roam, lose the network: hqsh reconnects on its own and replays exactly the output you missed, with no gaps and no repeats. The session lives on the host.</p>
+    </div>
+    <div class="card">
+      <img src="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/1f465.png" alt="">
+      <h3>Share it like tmux</h3>
+      <p>Attach from your laptop and your desktop at once, pair with a teammate, or let someone watch read-only. <code>--steal</code> takes a session over.</p>
     </div>
     <div class="card">
       <img src="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/1f680.png" alt="">
       <h3>Images and HD emoji</h3>
-      <p>mosh only syncs text and drops every image. hqsh carries the raw stream, so Kitty and iTerm2 images, and our OpenEmoji art, get through.</p>
+      <p>mosh syncs only text and drops every image. hqsh carries the raw stream, so Kitty, iTerm2 and sixel images and OpenEmoji art come through.</p>
     </div>
     <div class="card">
       <img src="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/1f512.png" alt="">
-      <h3>Just SSH</h3>
-      <p>Runs over your existing ssh config, keys and agent. No new ports, no UDP, no daemon to open up.</p>
+      <h3>Just ssh</h3>
+      <p>Your keys, agent, ProxyJump and known_hosts. No new port, no UDP, no daemon to expose, nothing for a firewall to block.</p>
+    </div>
+    <div class="card">
+      <img src="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/1f30d.png" alt="">
+      <h3>Every OS, as a real service</h3>
+      <p>Sessions run as systemd units on Linux, launchd jobs on macOS, and on ConPTY on Windows servers, so they survive logout and you can see them with your usual tools.</p>
+    </div>
+    <div class="card">
+      <img src="https://raw.githubusercontent.com/profullstack/openemoji/main/png/128/1f517.png" alt="">
+      <h3>Tailscale built in</h3>
+      <p>If Tailscale is running, hqsh connects over your tailnet automatically and falls back to the normal route when it must. Your tailnet machines show up as hosts.</p>
     </div>
   </div>
 
-  <h2>hqterm desktop</h2>
-  <p>Our own terminal window for Linux (KDE, GNOME, anything with a display): tabs, split panes that come back where you left them, and every hqtui/qc image and HD emoji drawn in full, even where Konsole cannot.</p>
-  <pre class="install"><code>curl -fsSL https://hqterm.sh/install | sh -s -- --desktop</code></pre>
-  <p class="hint">Then run <code>hqterm desktop</code> (or <code>hqterm desktop --host dev2 --session main</code>), or pick hqterm in your app launcher. Linux x86_64 and arm64 AppImage; the plain install adds it automatically on a Linux desktop. Direct download: <a href="https://github.com/profullstack/hqterm/releases/latest/download/hqterm-desktop-linux-x86_64.AppImage">hqterm-desktop-linux-x86_64.AppImage</a>.</p>
+  <div class="section">
+    <h2>Why not mosh, Eternal Terminal or plain tmux?</h2>
+    <table>
+      <tr><th></th><th>hqterm</th><th>mosh</th><th>Eternal Terminal</th><th>ssh + tmux</th></tr>
+      <tr><td>Survives sleep and network changes</td><td class="y">yes</td><td class="y">yes</td><td class="y">yes</td><td class="m">reattach by hand</td></tr>
+      <tr><td>Scrollback and exact replay</td><td class="y">yes</td><td class="n">screen only</td><td class="y">yes</td><td class="m">tmux's</td></tr>
+      <tr><td>Images and graphics protocols</td><td class="y">yes</td><td class="n">dropped</td><td class="y">yes</td><td class="m">passthrough only</td></tr>
+      <tr><td>Shared sessions, read-only watchers</td><td class="y">yes</td><td class="n">no</td><td class="n">no</td><td class="y">yes</td></tr>
+      <tr><td>Extra ports or firewall changes</td><td class="y">none</td><td class="n">UDP 60000+</td><td class="n">TCP 2022</td><td class="y">none</td></tr>
+      <tr><td>Windows hosts</td><td class="y">yes</td><td class="n">no</td><td class="n">no</td><td class="n">no</td></tr>
+      <tr><td>Tailscale-aware</td><td class="y">yes</td><td class="n">no</td><td class="n">no</td><td class="n">no</td></tr>
+    </table>
+  </div>
 
-  <table>
-    <tr><td>Ctrl+Shift+T / W</td><td>New tab / close tab (Ctrl+Tab switches)</td></tr>
-    <tr><td>Ctrl+Shift+D / E</td><td>Split right / split down (a split of a remote pane opens a new hqsh session on that host)</td></tr>
-    <tr><td>Ctrl+Shift+Arrows</td><td>Move between panes (or one click)</td></tr>
-    <tr><td>Ctrl+Shift+X</td><td>Close the pane</td></tr>
-    <tr><td>Ctrl+Shift+C / V</td><td>Copy / paste</td></tr>
-    <tr><td>Ctrl+= / Ctrl+-</td><td>Zoom</td></tr>
-  </table>
+  <div class="section">
+    <h2>Use it</h2>
+<pre class="usage"><span class="k">hqterm</span>                        <span class="c"># your hosts (ssh config, added, tailnet) and their sessions; click to attach</span>
+<span class="k">hqterm connect</span> dev2 main       <span class="c"># straight into session "main" on dev2</span>
+<span class="k">hqterm desktop</span>                <span class="c"># our terminal window: tabs, splits, images</span>
+<span class="k">hqsh</span> dev2 --read-only         <span class="c"># watch a session someone else is driving</span>
+<span class="k">hqsh</span> dev2 --steal             <span class="c"># take it over</span>
+<span class="k">hqterm update</span>                 <span class="c"># everything, in place</span>
+<span class="c"># Ctrl-^ then .  detaches; the session keeps running</span></pre>
+    <p class="hint">Every command, key, setting and fix is in <a href="/docs">the docs</a>.</p>
+  </div>
 
-  <h2>Quick start</h2>
-<pre class="usage"><span class="k">hqterm</span>                      <span class="c"># hosts from ~/.ssh/config, their sessions, one click to attach</span>
-<span class="k">hqterm connect</span> dev2 main     <span class="c"># straight into session "main" on dev2</span>
-<span class="k">hqterm doctor</span>               <span class="c"># what your terminal supports, with a test image</span>
-<span class="k">hqterm fonts install</span>        <span class="c"># OpenEmoji colour font for this terminal</span>
-
-<span class="c"># on a server you connect to (hqterm does this for you with the i key):</span>
-curl -fsSL https://hqterm.sh/install | sh -s -- --server</pre>
-
-  <h2>Keys</h2>
-  <table>
-    <tr><td>Enter / click</td><td>Attach to the session (one click, no double-click)</td></tr>
-    <tr><td>n</td><td>New session (default name "main")</td></tr>
-    <tr><td>a</td><td>Add a host</td></tr>
-    <tr><td>i</td><td>Install hqsh on the selected host</td></tr>
-    <tr><td>Ctrl-^ .</td><td>Detach from a session; it keeps running</td></tr>
-    <tr><td>q</td><td>Quit</td></tr>
-  </table>
+  <div class="section">
+    <h2>hqterm desktop</h2>
+    <p>Our own terminal window for Linux (KDE, GNOME, anything with a display): GPU-rendered tabs and split panes that reattach to their sessions on the next launch. Every hqtui and qc image and HD emoji is drawn in full, even where Konsole cannot.</p>
+    <pre class="install"><code>curl -fsSL https://hqterm.sh/install | sh -s -- --desktop</code></pre>
+  </div>
 
   <footer>
-    Built on <a href="https://hqtui.com">hqtui</a> and <a href="https://github.com/profullstack/hqsh">hqsh</a>. Emoji art: <a href="https://github.com/profullstack/openemoji">OpenEmoji</a>.
-    Source: <a href="https://github.com/profullstack/hqterm">github.com/profullstack/hqterm</a>. MIT.
+    Free and open source (MIT). Built on <a href="https://hqtui.com">hqtui</a> and <a href="https://github.com/profullstack/hqsh">hqsh</a>; emoji art by <a href="https://github.com/profullstack/openemoji">OpenEmoji</a>.
+    <a href="/docs">Docs</a> · <a href="https://github.com/profullstack/hqterm">github.com/profullstack/hqterm</a> · <a href="https://github.com/profullstack/hqsh">github.com/profullstack/hqsh</a>
   </footer>
 </main>
 </body>
