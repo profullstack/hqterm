@@ -13,7 +13,7 @@ app.setName("hqterm");
 // Speed: xterm 6 draws fast only through WebGL, so the GPU has to be on.
 // Chromium blocklists many Linux GPU/driver combinations and then every pane
 // falls back to the DOM renderer, where redraws and resizes crawl. Opt out of
-// the blocklist, rasterize on the GPU, and run natively on Wayland.
+// the blocklist and run natively on Wayland.
 // `"gpu": false` in ~/.config/hqterm/desktop.json turns all of this off.
 const GPU_OFF = (() => {
   try {
@@ -26,9 +26,9 @@ const GPU_OFF = (() => {
 if (GPU_OFF) {
   app.disableHardwareAcceleration();
 } else {
+  // Only the blocklist: forcing GPU rasterization/zero-copy breaks the
+  // compositor where there is no real GPU (UnknownVizError under Xvfb).
   app.commandLine.appendSwitch("ignore-gpu-blocklist");
-  app.commandLine.appendSwitch("enable-gpu-rasterization");
-  app.commandLine.appendSwitch("enable-zero-copy");
   if (process.platform === "linux" && (process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === "wayland")) {
     app.commandLine.appendSwitch("ozone-platform-hint", "auto");
     app.commandLine.appendSwitch("enable-features", "WaylandWindowDecorations");
