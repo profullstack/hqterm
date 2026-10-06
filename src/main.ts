@@ -7,6 +7,7 @@
 import { emojiFontStatus, installEmojiFont, removeEmojiFont } from "@profullstack/hqtui";
 import { desktop } from "./desktop.ts";
 import { doctor } from "./doctor.ts";
+import { update } from "./update.ts";
 import { addUserHost, loadUserHosts, mergeHosts, validHostName } from "./hosts.ts";
 import { connect, findHqsh, installArgs, INSTALL_URL, pressEnter, runInteractive, connectArgs } from "./run.ts";
 import { sshConfigHosts } from "./sshconfig.ts";
@@ -25,6 +26,8 @@ Usage:
                                  what this terminal supports, with a test image
   hqterm fonts install|status|remove
                                  the OpenEmoji colour font for this terminal
+  hqterm update [--check] [--force]
+                                 update hqterm, hqsh and the desktop app
   hqterm --version | --help
 
 Keys in the manager:
@@ -129,6 +132,9 @@ export async function main(argv: string[]): Promise<number> {
       return doctor(rest);
     case "fonts":
       return fonts(rest[0]);
+    case "update":
+    case "upgrade":
+      return update(rest);
     default:
       console.error(`hqterm: unknown command "${cmd}"\n`);
       process.stderr.write(HELP);
