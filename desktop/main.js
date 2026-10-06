@@ -55,7 +55,7 @@ function loadConfig() {
   const c = readJson(configFile()) || {};
   return {
     fontFamily: typeof c.fontFamily === "string" && c.fontFamily.trim() ? c.fontFamily : "monospace",
-    fontSize: Number.isFinite(c.fontSize) && c.fontSize >= 6 && c.fontSize <= 72 ? c.fontSize : 14,
+    fontSize: Number.isFinite(c.fontSize) && c.fontSize >= 6 && c.fontSize <= 72 ? c.fontSize : 15,
     theme: c.theme && typeof c.theme === "object" ? c.theme : undefined,
     restore: c.restore !== false,
     gpu: c.gpu !== false,
@@ -337,6 +337,25 @@ if (!app.requestSingleInstanceLock()) {
           } catch (err) {
             console.log(`hqterm-desktop smoke: screenshot failed: ${err && err.message}`);
           }
+        }
+        // Every pane's rows must fit inside the pane: a fit that ignores the
+        // pane's padding cuts the last row off at the bottom.
+        let clipped = [];
+        try {
+          clipped = win
+            ? await win.webContents.executeJavaScript(`[...document.querySelectorAll(".pane")].flatMap((p) => {
+                const s = p.querySelector(".xterm-screen");
+                if (!s) return [];
+                const a = p.getBoundingClientRect(), b = s.getBoundingClientRect();
+                return b.bottom > a.bottom + 0.5 || b.right > a.right + 0.5
+                  ? [\`screen \${Math.round(b.width)}x\${Math.round(b.height)} in pane \${Math.round(a.width)}x\${Math.round(a.height)}\`]
+                  : [];
+              })`)
+            : [];
+        } catch {}
+        if (clipped.length) {
+          console.log(`hqterm-desktop smoke: clipped: ${clipped.join("; ")}`);
+          return app.exit(4);
         }
         console.log(`hqterm-desktop smoke: ok (ptys=${ptys.size})`);
         app.exit(ptys.size > 0 ? 0 : 3);

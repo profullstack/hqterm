@@ -63,7 +63,8 @@ The layout (tabs, splits, each remote pane's host and session) is saved to
 `~/.config/hqterm/desktop-layout.json`, and the next launch reattaches every
 remote pane to its hqsh session; local panes come back as fresh shells.
 Settings: `~/.config/hqterm/desktop.json`, e.g.
-`{"fontFamily": "JetBrains Mono", "fontSize": 14, "theme": {"background": "#000"}, "restore": true}`.
+`{"fontFamily": "JetBrains Mono", "fontSize": 16, "theme": {"background": "#000"}, "restore": true}`
+(the default font size is 15).
 
 Develop: `cd desktop && npm install && npm start` (needs bun and a C++
 toolchain for node-pty); `npm run dist` builds the AppImage.
