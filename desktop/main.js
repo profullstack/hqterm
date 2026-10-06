@@ -10,6 +10,31 @@ const path = require("node:path");
 if (process.platform === "linux") app.commandLine.appendSwitch("no-sandbox");
 app.setName("hqterm");
 
+// Speed: xterm 6 draws fast only through WebGL, so the GPU has to be on.
+// Chromium blocklists many Linux GPU/driver combinations and then every pane
+// falls back to the DOM renderer, where redraws and resizes crawl. Opt out of
+// the blocklist, rasterize on the GPU, and run natively on Wayland.
+// `"gpu": false` in ~/.config/hqterm/desktop.json turns all of this off.
+const GPU_OFF = (() => {
+  try {
+    const p = require("node:path").join(process.env.XDG_CONFIG_HOME || require("node:path").join(require("node:os").homedir(), ".config"), "hqterm", "desktop.json");
+    return JSON.parse(require("node:fs").readFileSync(p, "utf8")).gpu === false;
+  } catch {
+    return false;
+  }
+})();
+if (GPU_OFF) {
+  app.disableHardwareAcceleration();
+} else {
+  app.commandLine.appendSwitch("ignore-gpu-blocklist");
+  app.commandLine.appendSwitch("enable-gpu-rasterization");
+  app.commandLine.appendSwitch("enable-zero-copy");
+  if (process.platform === "linux" && (process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === "wayland")) {
+    app.commandLine.appendSwitch("ozone-platform-hint", "auto");
+    app.commandLine.appendSwitch("enable-features", "WaylandWindowDecorations");
+  }
+}
+
 const VERSION = require("./package.json").version;
 const HOST_RE = /^[A-Za-z0-9._@:\-\[\]]+$/;
 const SESSION_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -33,6 +58,7 @@ function loadConfig() {
     fontSize: Number.isFinite(c.fontSize) && c.fontSize >= 6 && c.fontSize <= 72 ? c.fontSize : 14,
     theme: c.theme && typeof c.theme === "object" ? c.theme : undefined,
     restore: c.restore !== false,
+    gpu: c.gpu !== false,
   };
 }
 
@@ -194,10 +220,28 @@ ipcMain.handle("pty:spawn", (e, { spec, cols, rows }) => {
   });
   ptys.set(id, p);
   const sender = e.sender;
+  // Coalesce output: one IPC message per pane every few ms, not one per read.
+  // A full-screen redraw arrives as dozens of small reads; sent one by one
+  // they each cost a renderer task and a partial repaint you can watch.
+  let pending = "";
+  let timer = null;
+  const flush = () => {
+    timer = null;
+    if (pending && !sender.isDestroyed()) sender.send("pty:data", id, pending);
+    pending = "";
+  };
   p.onData((data) => {
-    if (!sender.isDestroyed()) sender.send("pty:data", id, data);
+    pending += data;
+    if (pending.length >= 256 * 1024) {
+      if (timer) clearTimeout(timer);
+      flush();
+    } else if (!timer) {
+      timer = setTimeout(flush, 4);
+    }
   });
   p.onExit(({ exitCode, signal }) => {
+    if (timer) clearTimeout(timer);
+    flush();
     ptys.delete(id);
     if (!sender.isDestroyed()) sender.send("pty:exit", id, exitCode, signal);
   });
@@ -252,6 +296,17 @@ if (!app.requestSingleInstanceLock()) {
     // No menu: Ctrl+W, Ctrl+R and friends belong to the shell.
     Menu.setApplicationMenu(null);
     createWindow();
+    // What the GPU is doing, for "why is it slow": ~/.config/hqterm/desktop.log.
+    try {
+      fs.mkdirSync(configDir(), { recursive: true });
+      const st = app.getGPUFeatureStatus();
+      fs.writeFileSync(
+        path.join(configDir(), "desktop.log"),
+        `${new Date().toISOString()} hqterm desktop ${VERSION}\n` +
+          `gpu: ${GPU_OFF ? "off (desktop.json)" : "on"}; webgl=${st.webgl} webgl2=${st.webgl2} rasterization=${st.gpu_compositing}/${st.rasterization}\n` +
+          `session: ${process.env.XDG_SESSION_TYPE || "?"} wayland=${process.env.WAYLAND_DISPLAY ? "yes" : "no"}\n`,
+      );
+    } catch {}
     if (process.env.HQTERM_DESKTOP_SMOKE) {
       // CI: prove the window and a PTY come up, draw emoji and an iTerm2
       // inline image, optionally screenshot it ($HQTERM_DESKTOP_SMOKE_SHOT), exit.
