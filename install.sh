@@ -134,6 +134,20 @@ install_one() {
   return 0
 }
 
+# have_libfuse2: whether an AppImage can mount itself here.
+have_libfuse2() {
+  for d in /lib /lib64 /usr/lib /usr/lib64 /lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu /lib/aarch64-linux-gnu /usr/lib/aarch64-linux-gnu; do
+    [ -e "$d/libfuse.so.2" ] && return 0
+  done
+  for l in ldconfig /sbin/ldconfig /usr/sbin/ldconfig; do
+    if command -v "$l" >/dev/null 2>&1; then
+      "$l" -p 2>/dev/null | grep -q 'libfuse\.so\.2' && return 0
+      return 1
+    fi
+  done
+  return 1
+}
+
 # install_desktop: the AppImage, an icon and an app-launcher entry (Linux only).
 install_desktop() {
   if [ "$OS" != linux ]; then
@@ -163,11 +177,24 @@ install_desktop() {
     || fetch "https://raw.githubusercontent.com/profullstack/openemoji/main/png/256/1f5a5-fe0f.png" "$TMP/hqterm.png" 2>/dev/null; then
     mv -f "$TMP/hqterm.png" "$icons/hqterm.png"
   fi
-  # AppImages mount through FUSE; without it they can unpack and run instead.
-  extra=""
-  if ! command -v fusermount >/dev/null 2>&1 && ! command -v fusermount3 >/dev/null 2>&1; then
-    extra=" --appimage-extract-and-run"
-    say "note: no FUSE (fusermount) here, so the launcher uses --appimage-extract-and-run"
+  chmod 644 "$icons/hqterm.png" 2>/dev/null || true
+  # An AppImage mounts itself with libfuse2 (libfuse.so.2), which many current
+  # distros no longer install (they ship fuse3 only). Without it, unpack the
+  # app once into $dir/app and launch that instead.
+  rm -rf "$dir/app"
+  exe="$dir/hqterm-desktop.AppImage"
+  if ! have_libfuse2; then
+    say "no libfuse2 here (AppImages need it to mount); unpacking the app into $dir/app"
+    rm -rf "$dir/squashfs-root"
+    if (cd "$dir" && ./hqterm-desktop.AppImage --appimage-extract >/dev/null) && [ -x "$dir/squashfs-root/hqterm-desktop" ]; then
+      mv "$dir/squashfs-root" "$dir/app"
+      chmod -R go+rX "$dir/app" 2>/dev/null || true
+      exe="$dir/app/hqterm-desktop"
+      say "installed $exe"
+    else
+      rm -rf "$dir/squashfs-root"
+      say "warning: could not unpack the AppImage; install libfuse2 (e.g. sudo apt install libfuse2t64) to run it"
+    fi
   fi
   cat > "$apps/hqterm.desktop" <<EOF
 [Desktop Entry]
@@ -175,7 +202,7 @@ Type=Application
 Name=hqterm
 GenericName=Terminal
 Comment=Terminal with tabs, split panes, images and HD emoji; persistent hqsh sessions
-Exec=$dir/hqterm-desktop.AppImage$extra --no-sandbox
+Exec=$exe --no-sandbox
 Icon=$icons/hqterm.png
 Terminal=false
 Categories=System;TerminalEmulator;

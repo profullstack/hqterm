@@ -49,7 +49,8 @@ export function desktopCandidates(env: NodeJS.ProcessEnv = process.env, platform
     out.push("/Applications/hqterm.app", join(home, "Applications", "hqterm.app"));
   } else {
     const opt = join(home, ".local", "opt", "hqterm-desktop");
-    out.push(join(opt, "hqterm-desktop.AppImage"), join(opt, "hqterm-desktop"));
+    // app/ is the AppImage unpacked by the installer where libfuse2 is missing.
+    out.push(join(opt, "app", "hqterm-desktop"), join(opt, "hqterm-desktop.AppImage"), join(opt, "hqterm-desktop"));
   }
   return out;
 }
@@ -75,10 +76,26 @@ export function desktopLaunch(
   if (opts.session) appArgs.push("--session", opts.session);
   if (platform === "darwin" && path.endsWith(".app")) return ["open", "-n", "-a", path, "--args", ...appArgs];
   const pre: string[] = [];
-  // AppImages mount with FUSE; without it they can still unpack and run.
+  // AppImages mount with libfuse2; without it they can still unpack (to $TMPDIR, every launch) and run.
   if (path.endsWith(".AppImage") && !hasFuse) pre.push("--appimage-extract-and-run");
   // Chromium's setuid sandbox is not set up inside an AppImage.
   return [path, ...pre, ...(platform === "linux" ? ["--no-sandbox"] : []), ...appArgs];
+}
+
+const LIBFUSE2_DIRS = [
+  "/lib",
+  "/lib64",
+  "/usr/lib",
+  "/usr/lib64",
+  "/lib/x86_64-linux-gnu",
+  "/usr/lib/x86_64-linux-gnu",
+  "/lib/aarch64-linux-gnu",
+  "/usr/lib/aarch64-linux-gnu",
+];
+
+/** An AppImage mounts itself with libfuse.so.2; fuse3-only systems (current Ubuntu, Kubuntu) cannot. */
+export function hasLibfuse2(exists: (p: string) => boolean = existsSync): boolean {
+  return LIBFUSE2_DIRS.some((d) => exists(join(d, "libfuse.so.2")));
 }
 
 export function hasDisplay(env: NodeJS.ProcessEnv = process.env, platform = process.platform): boolean {
@@ -100,8 +117,7 @@ export async function desktop(args: string[]): Promise<number> {
     console.error("hqterm desktop: no display ($DISPLAY / $WAYLAND_DISPLAY unset). Run it from your desktop session.");
     return 2;
   }
-  const hasFuse = Boolean(Bun.which("fusermount") || Bun.which("fusermount3"));
-  const [cmd, ...rest] = desktopLaunch(path, parsed.opts, process.platform, hasFuse);
+  const [cmd, ...rest] = desktopLaunch(path, parsed.opts, process.platform, hasLibfuse2());
   const child = spawn(cmd!, rest, { detached: true, stdio: "ignore", env: { ...process.env, ELECTRON_DISABLE_SANDBOX: "1" } });
   const failed = await new Promise<Error | undefined>((resolve) => {
     child.once("error", resolve);
