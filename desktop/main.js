@@ -87,6 +87,8 @@ function paneEnv() {
     TERM_PROGRAM_VERSION: VERSION,
     HQTUI_IMAGES: "iterm",
     QC_HD: "iterm",
+    // The one hint that crosses ssh (SendEnv/AcceptEnv LC_*): iTerm2 inline images work here.
+    LC_TERMINAL: "iTerm2",
   });
   return env;
 }
@@ -102,7 +104,10 @@ function startDir() {
 function command(spec) {
   if (spec && spec.kind === "remote" && HOST_RE.test(spec.host || "") && !spec.host.startsWith("-")) {
     const session = SESSION_RE.test(spec.session || "") ? spec.session : "main";
-    return ["/bin/sh", ["-lc", 'exec hqsh "$0" --session "$1"', spec.host, session]];
+    // hqsh forwards only TERM. sshd accepts LC_* by default (AcceptEnv LANG LC_*),
+    // a new session's shell inherits it, and hqtui reads LC_TERMINAL=iTerm2 as
+    // "draw iTerm2 inline images": so remote hqtui/qc draw HD images here too.
+    return ["/bin/sh", ["-lc", 'exec hqsh "$0" --session "$1" -- -o SetEnv=LC_TERMINAL=iTerm2', spec.host, session]];
   }
   if (spec && spec.kind === "hqterm") return ["/bin/sh", ["-lc", "exec hqterm"]];
   return [loginShell(), ["-l"]];
