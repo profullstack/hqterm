@@ -106,7 +106,13 @@
       if (rt.ptyId !== undefined) hq.write(rt.ptyId, d);
     });
     term.onBinary((d) => rt.ptyId !== undefined && hq.write(rt.ptyId, d));
-    term.onResize(({ cols, rows }) => rt.ptyId !== undefined && hq.resize(rt.ptyId, cols, rows));
+    // Tell the shell the new size only once it has settled: every PTY resize
+    // makes a full-screen program (and hqsh's remote side) redraw everything,
+    // so resizing per frame while dragging floods it with redraws.
+    term.onResize(({ cols, rows }) => {
+      clearTimeout(rt.ptyResizeTimer);
+      rt.ptyResizeTimer = setTimeout(() => rt.ptyId !== undefined && hq.resize(rt.ptyId, cols, rows), 80);
+    });
     term.onTitleChange((t) => {
       rt.title = t;
       renderBar();
@@ -124,26 +130,42 @@
     if (rt.opened) return;
     rt.opened = true;
     rt.term.open(rt.el);
-    if (webglCount < MAX_WEBGL) {
-      try {
-        const gl = new WebglAddon.WebglAddon();
-        gl.onContextLoss(() => {
-          gl.dispose();
-          webglCount--;
-        });
-        rt.term.loadAddon(gl);
-        webglCount++;
-        rt.webgl = gl;
-      } catch {
-        // DOM renderer it is.
-      }
-    }
+    loadWebgl(rt);
     // After the renderer, so images draw on top of it.
     const images = new ImageAddon.ImageAddon({ iipSupport: true, sixelSupport: true, enableSizeReports: true });
     rt.term.loadAddon(images);
     iipCursorLikeITerm(rt.term, images);
     fit(rt);
     spawn(rt);
+  }
+
+  /**
+   * The fast renderer. Without it xterm falls back to the DOM, where redraws
+   * are visibly slow, so say so once instead of silently crawling, and after a
+   * lost GPU context try WebGL again rather than staying on the slow path.
+   */
+  function loadWebgl(rt) {
+    if (rt.disposed || webglCount >= MAX_WEBGL) return slowRenderer(rt);
+    try {
+      const gl = new WebglAddon.WebglAddon();
+      gl.onContextLoss(() => {
+        gl.dispose();
+        webglCount--;
+        rt.webgl = undefined;
+        setTimeout(() => loadWebgl(rt), 1000);
+      });
+      rt.term.loadAddon(gl);
+      webglCount++;
+      rt.webgl = gl;
+    } catch {
+      slowRenderer(rt);
+    }
+  }
+
+  function slowRenderer(rt) {
+    if (rt.warnedSlow) return;
+    rt.warnedSlow = true;
+    rt.term.write("\x1b[2mhqterm: GPU rendering is unavailable here, so this pane uses the slower renderer (see ~/.config/hqterm/desktop.log).\x1b[0m\r\n");
   }
 
   /**
@@ -182,17 +204,32 @@
     } catch {}
   }
 
+  /**
+   * Refit after a size change, at most every FIT_EVERY ms while a window or
+   * divider is being dragged, plus once when it stops. A fit reflows the whole
+   * scrollback; doing it on every frame is what made resizing judder.
+   */
+  const FIT_EVERY = 50;
   function fitSoon(rt) {
     if (rt.fitQueued) return;
     rt.fitQueued = true;
-    requestAnimationFrame(() => {
-      rt.fitQueued = false;
-      fit(rt);
-    });
+    const wait = Math.max(0, FIT_EVERY - (performance.now() - (rt.lastFit || 0)));
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        rt.fitQueued = false;
+        rt.lastFit = performance.now();
+        fit(rt);
+        // The trailing fit, in case the size kept changing after this one.
+        clearTimeout(rt.fitTrail);
+        rt.fitTrail = setTimeout(() => fit(rt), FIT_EVERY * 2);
+      });
+    }, wait);
   }
 
   function disposeRuntime(rt) {
     rt.disposed = true;
+    clearTimeout(rt.ptyResizeTimer);
+    clearTimeout(rt.fitTrail);
     if (rt.ptyId !== undefined) {
       hq.kill(rt.ptyId);
       byPty.delete(rt.ptyId);
