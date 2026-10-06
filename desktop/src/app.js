@@ -617,9 +617,24 @@
     true,
   );
 
-  window.addEventListener("resize", () => {
+  const fitAll = () => {
     for (const rt of runtimes.values()) fitSoon(rt);
-  });
+  };
+  window.addEventListener("resize", fitAll);
+  // The cell size changes without the pane changing size when a font finishes
+  // loading or the window moves to a screen with another scale factor; refit
+  // then too, or the last row is cut off until the next window resize.
+  document.fonts.addEventListener("loadingdone", fitAll);
+  (function watchScale() {
+    matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener(
+      "change",
+      () => {
+        fitAll();
+        watchScale();
+      },
+      { once: true },
+    );
+  })();
 
   // ---------- start ----------
 

@@ -223,8 +223,8 @@ button.icon:hover img {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  padding: 4px 0 0 6px;
   position: relative;
+  overflow: hidden;
   outline: 1px solid transparent;
   outline-offset: -1px;
 }
@@ -233,8 +233,13 @@ button.icon:hover img {
   outline-color: #5ea1ff66;
 }
 
+/* The inset lives on .xterm, not .pane: FitAddon sizes rows from the parent's
+   computed height, which under border-box includes the parent's own padding,
+   so padding on .pane made it fit one row too many and clip the bottom. It
+   subtracts the terminal element's padding correctly. */
 .pane .xterm {
   height: 100%;
+  padding: 4px 0 0 6px;
 }
 
 body.dragging-row,

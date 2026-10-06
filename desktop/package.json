@@ -1,7 +1,7 @@
 {
   "name": "hqterm-desktop",
   "productName": "hqterm",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "hqterm desktop: a terminal window that shows hqtui/qc images and HD emoji (xterm.js + node-pty).",
   "license": "MIT",
   "author": "Profullstack, Inc. <hello@profullstack.com>",
