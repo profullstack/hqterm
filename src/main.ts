@@ -5,6 +5,7 @@
  * can show them.
  */
 import { emojiFontStatus, installEmojiFont, removeEmojiFont } from "@profullstack/hqtui";
+import { desktop } from "./desktop.ts";
 import { doctor } from "./doctor.ts";
 import { addUserHost, loadUserHosts, mergeHosts, validHostName } from "./hosts.ts";
 import { connect, findHqsh, installArgs, INSTALL_URL, pressEnter, runInteractive, connectArgs } from "./run.ts";
@@ -17,6 +18,9 @@ const HELP = `hqterm ${VERSION}: persistent terminal sessions that survive disco
 Usage:
   hqterm                         full-screen session manager
   hqterm connect <host> [name]   attach to (or create) session <name> on <host> via hqsh
+  hqterm desktop [--host H] [--session S]
+                                 open the hqterm desktop app (tabs, split panes,
+                                 images and HD emoji); optionally attached to H/S
   hqterm doctor [--try kitty|iterm]
                                  what this terminal supports, with a test image
   hqterm fonts install|status|remove
@@ -31,6 +35,7 @@ Keys in the manager:
 
 Hosts come from ~/.ssh/config and ~/.config/hqterm/hosts.json.
 Install: curl -fsSL ${INSTALL_URL} | sh
+Desktop app: curl -fsSL ${INSTALL_URL} | sh -s -- --desktop
 `;
 
 async function manager(): Promise<number> {
@@ -118,6 +123,8 @@ export async function main(argv: string[]): Promise<number> {
       }
       return connect(host, session);
     }
+    case "desktop":
+      return desktop(rest);
     case "doctor":
       return doctor(rest);
     case "fonts":

@@ -3,9 +3,9 @@
  * is a concrete host (no `*`, `?` or `!` pattern). Order is kept, duplicates
  * are dropped. `Include` is followed when a reader is given.
  */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, isAbsolute } from "node:path";
+import { basename, dirname, join, isAbsolute } from "node:path";
 
 export type ReadFile = (path: string) => string | undefined;
 
@@ -74,10 +74,29 @@ function expandInclude(pattern: string, home: string): string[] {
   if (!isAbsolute(p)) p = join(home, ".ssh", p);
   if (!/[*?[]/.test(p)) return [p];
   try {
-    return [...new Bun.Glob(p).scanSync({ absolute: true, onlyFiles: true })].sort();
+    if (typeof Bun !== "undefined") return [...new Bun.Glob(p).scanSync({ absolute: true, onlyFiles: true })].sort();
+    return globBasename(p);
   } catch {
     return [];
   }
+}
+
+/** Without Bun (the desktop app runs this under Node): wildcards in the last path segment only. */
+export function globBasename(p: string, list: (dir: string) => string[] = (d) => readdirSync(d)): string[] {
+  const dir = dirname(p);
+  if (/[*?[]/.test(dir)) return [];
+  const re = new RegExp(
+    "^" +
+      basename(p)
+        .replace(/[.+^${}()|\\]/g, "\\$&")
+        .replace(/\*/g, "[^/]*")
+        .replace(/\?/g, "[^/]") +
+      "$",
+  );
+  return list(dir)
+    .filter((n) => re.test(n))
+    .sort()
+    .map((n) => join(dir, n));
 }
 
 const readText: ReadFile = (path) => {

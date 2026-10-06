@@ -1,0 +1,58 @@
+{
+  "name": "hqterm-desktop",
+  "productName": "hqterm",
+  "version": "0.2.0",
+  "description": "hqterm desktop: a terminal window that shows hqtui/qc images and HD emoji (xterm.js + node-pty).",
+  "license": "MIT",
+  "author": "Profullstack, Inc. <hello@profullstack.com>",
+  "homepage": "https://hqterm.sh",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "prepare-assets": "node scripts/prepare.mjs",
+    "start": "npm run prepare-assets && electron .",
+    "test": "node --test test/layout-tests.js",
+    "dist": "npm run prepare-assets && electron-builder --linux AppImage --publish never"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-image": "^0.9.0",
+    "@xterm/addon-unicode11": "^0.9.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/addon-webgl": "^0.19.0",
+    "@xterm/xterm": "^6.0.0",
+    "node-pty": "^1.1.0"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "sh.hqterm.desktop",
+    "productName": "hqterm",
+    "executableName": "hqterm-desktop",
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**",
+      "src/**",
+      "fonts/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/node-pty/**"
+    ],
+    "linux": {
+      "target": "AppImage",
+      "category": "System;TerminalEmulator",
+      "icon": "build/icon.png",
+      "artifactName": "hqterm-desktop-linux-${arch}.${ext}",
+      "executableArgs": ["--no-sandbox"]
+    },
+    "mac": {
+      "target": "zip",
+      "icon": "build/icon.png",
+      "identity": null
+    }
+  }
+}

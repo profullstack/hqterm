@@ -79,6 +79,20 @@
     </div>
   </div>
 
+  <h2>hqterm desktop</h2>
+  <p>Our own terminal window for Linux (KDE, GNOME, anything with a display): tabs, split panes that come back where you left them, and every hqtui/qc image and HD emoji drawn in full, even where Konsole cannot.</p>
+  <pre class="install"><code>curl -fsSL https://hqterm.sh/install | sh -s -- --desktop</code></pre>
+  <p class="hint">Then run <code>hqterm desktop</code> (or <code>hqterm desktop --host dev2 --session main</code>), or pick hqterm in your app launcher. Linux x86_64 and arm64 AppImage; the plain install adds it automatically on a Linux desktop. Direct download: <a href="https://github.com/profullstack/hqterm/releases/latest/download/hqterm-desktop-linux-x86_64.AppImage">hqterm-desktop-linux-x86_64.AppImage</a>.</p>
+
+  <table>
+    <tr><td>Ctrl+Shift+T / W</td><td>New tab / close tab (Ctrl+Tab switches)</td></tr>
+    <tr><td>Ctrl+Shift+D / E</td><td>Split right / split down (a split of a remote pane opens a new hqsh session on that host)</td></tr>
+    <tr><td>Ctrl+Shift+Arrows</td><td>Move between panes (or one click)</td></tr>
+    <tr><td>Ctrl+Shift+X</td><td>Close the pane</td></tr>
+    <tr><td>Ctrl+Shift+C / V</td><td>Copy / paste</td></tr>
+    <tr><td>Ctrl+= / Ctrl+-</td><td>Zoom</td></tr>
+  </table>
+
   <h2>Quick start</h2>
 <pre class="usage"><span class="k">hqterm</span>                      <span class="c"># hosts from ~/.ssh/config, their sessions, one click to attach</span>
 <span class="k">hqterm connect</span> dev2 main     <span class="c"># straight into session "main" on dev2</span>
