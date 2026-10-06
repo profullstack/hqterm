@@ -390,7 +390,7 @@
         const close = document.createElement("button");
         close.className = "icon";
         close.title = "Close tab (Ctrl+Shift+W)";
-        close.innerHTML = '<img src="icons/x.svg" alt="Close" />';
+        close.innerHTML = '<img src="icons/close.svg" alt="Close" />';
         close.addEventListener("click", (e) => {
           e.stopPropagation();
           closeTab(tabs.indexOf(tab));

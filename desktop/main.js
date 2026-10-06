@@ -133,8 +133,13 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: true,
       spellcheck: false,
+      // The smoke test runs without a window manager, where an unfocused window stops painting.
+      backgroundThrottling: !process.env.HQTERM_DESKTOP_SMOKE,
     },
   });
+  if (process.env.HQTERM_DESKTOP_SMOKE) {
+    win.webContents.on("console-message", (e) => console.log(`renderer ${e.level}: ${e.message}`));
+  }
   win.loadFile(path.join(__dirname, "src", "index.html"));
   // Nothing navigates away from the terminal; links open in the browser.
   win.webContents.on("will-navigate", (e) => e.preventDefault());
