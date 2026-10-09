@@ -34,6 +34,14 @@
   const early = new Map(); // pty id -> { data: string[], exit?: [code, signal] }
   let webglCount = 0;
 
+  // CI smoke test (main.js) checks the focused pane's selection through this.
+  if (init.smoke) {
+    window.hqSmoke = {
+      mouseMode: () => focusedRt()?.term.modes.mouseTrackingMode,
+      selection: () => focusedRt()?.term.getSelection() || "",
+    };
+  }
+
   // ---------- PTY plumbing ----------
 
   hq.onData((id, data) => {
@@ -116,6 +124,23 @@
     term.onTitleChange((t) => {
       rt.title = t;
       renderBar();
+    });
+    // Shift+drag selects even when the app tracks the mouse, but xterm.js counts
+    // every mouse report as user input and clears the selection on it. With
+    // any-motion tracking (hqtui's hover) the first move after releasing the
+    // button wiped the selection, so hold back hover reports while text is selected.
+    el.addEventListener(
+      "mousemove",
+      (e) => {
+        if (!e.buttons && term.modes.mouseTrackingMode === "any" && term.hasSelection()) e.stopPropagation();
+      },
+      true,
+    );
+    // Like other Linux terminals, a selection is also the PRIMARY selection
+    // (middle-click pastes it); Ctrl+Shift+C still copies to the clipboard.
+    term.onSelectionChange(() => {
+      const sel = term.getSelection();
+      if (sel) hq.writeSelection(sel);
     });
     // One click focuses a pane.
     el.addEventListener("mousedown", () => setFocus(pane.id), true);
