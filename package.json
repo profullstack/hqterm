@@ -1,6 +1,6 @@
 {
   "name": "hqterm",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Terminal session manager: persistent hqsh sessions with images and HD emoji, built on hqtui.",
   "license": "MIT",
   "private": true,

@@ -37,8 +37,10 @@
   // CI smoke test (main.js) checks the focused pane's selection through this.
   if (init.smoke) {
     window.hqSmoke = {
-      mouseMode: () => focusedRt()?.term.modes.mouseTrackingMode,
-      selection: () => focusedRt()?.term.getSelection() || "",
+      state: () => {
+        const rt = focusedRt();
+        return { ptyId: rt?.ptyId, mode: rt?.term.modes.mouseTrackingMode, selection: rt?.term.getSelection() || "" };
+      },
     };
   }
 

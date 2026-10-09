@@ -334,32 +334,38 @@ if (!app.requestSingleInstanceLock()) {
       }, wait * 0.7);
       // Shift+drag must leave a selection that survives the mouse moving on,
       // even when the app tracks every motion (hqtui hover, DECSET 1003).
+      // The escape goes straight to the focused pane's terminal (no shell to
+      // wait for); poll, since on a slow runner the split pane comes up late.
+      const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
       let selection = "not run";
-      setTimeout(() => {
-        const p = [...ptys.values()].pop();
-        if (p) p.write("clear; printf 'select me please\\n\\033[?1003h'\r");
-      }, wait * 0.75);
-      setTimeout(async () => {
-        if (!win) return;
+      const selectionTest = new Promise((done) => setTimeout(done, wait * 0.75)).then(async () => {
         try {
-          const r = await win.webContents.executeJavaScript(`(() => {
-            const b = document.querySelector(".pane.focused .xterm-screen").getBoundingClientRect();
-            return { x: Math.round(b.left + 4), y: Math.round(b.top + 6), mode: window.hqSmoke.mouseMode() };
-          })()`);
+          let r;
+          for (let i = 0; i < 40 && win; i++) {
+            r = await win.webContents.executeJavaScript(`(() => {
+              const b = document.querySelector(".pane.focused .xterm-screen").getBoundingClientRect();
+              return { x: Math.round(b.left + 4), y: Math.round(b.top + 6), ...window.hqSmoke.state() };
+            })()`);
+            if (r.mode === "any") break;
+            if (r.ptyId !== undefined) win.webContents.send("pty:data", r.ptyId, "\x1b[H\x1b[2Kselect me please\x1b[?1003h");
+            await sleep(150);
+          }
+          if (!win || !r) return;
           const send = (type, x, modifiers) => win.webContents.sendInputEvent({ type, x, y: r.y, button: "left", clickCount: 1, modifiers });
           send("mouseDown", r.x, ["shift"]);
           for (let x = r.x; x <= r.x + 80; x += 10) send("mouseMove", x, ["shift", "leftButtonDown"]);
           send("mouseUp", r.x + 80, ["shift"]);
-          await new Promise((res) => setTimeout(res, 100));
+          await sleep(100);
           for (let x = r.x + 80; x <= r.x + 140; x += 10) win.webContents.sendInputEvent({ type: "mouseMove", x, y: r.y + 20 });
-          await new Promise((res) => setTimeout(res, 300));
-          const sel = await win.webContents.executeJavaScript("window.hqSmoke.selection()");
+          await sleep(300);
+          const sel = await win.webContents.executeJavaScript("window.hqSmoke.state().selection");
           selection = r.mode !== "any" ? `mouse mode ${r.mode}, not any` : sel ? "" : "cleared after release";
         } catch (err) {
           selection = `error: ${err && err.message}`;
         }
-      }, wait * 0.85);
+      });
       setTimeout(async () => {
+        await selectionTest;
         const shot = process.env.HQTERM_DESKTOP_SMOKE_SHOT;
         if (shot && win) {
           try {
