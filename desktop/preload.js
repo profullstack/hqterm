@@ -15,5 +15,6 @@ contextBridge.exposeInMainWorld("hq", {
   onOpen: (fn) => ipcRenderer.on("app:open", (_e, spec) => fn(spec)),
   readClipboard: () => ipcRenderer.invoke("clipboard:read"),
   writeClipboard: (text) => ipcRenderer.send("clipboard:write", text),
+  writeSelection: (text) => ipcRenderer.send("selection:write", text),
   openUrl: (url) => ipcRenderer.send("open:url", url),
 });

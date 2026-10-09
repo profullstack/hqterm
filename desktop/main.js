@@ -189,7 +189,7 @@ ipcMain.handle("app:init", () => {
   const layout = config.restore ? readJson(layoutFile()) : undefined;
   const open = pendingSpec;
   pendingSpec = undefined;
-  return { config, layout, open, version: VERSION, platform: process.platform };
+  return { config, layout, open, version: VERSION, platform: process.platform, smoke: !!process.env.HQTERM_DESKTOP_SMOKE };
 });
 
 ipcMain.handle("hosts:list", () => listHosts());
@@ -276,6 +276,10 @@ ipcMain.handle("clipboard:read", () => clipboard.readText());
 ipcMain.on("clipboard:write", (_e, text) => {
   if (typeof text === "string") clipboard.writeText(text);
 });
+// PRIMARY selection exists only on Linux (X11/Wayland); a no-op elsewhere.
+ipcMain.on("selection:write", (_e, text) => {
+  if (typeof text === "string" && process.platform === "linux") clipboard.writeText(text, "selection");
+});
 ipcMain.on("open:url", (_e, url) => {
   if (typeof url === "string" && /^https?:\/\//.test(url)) shell.openExternal(url);
 });
@@ -328,6 +332,33 @@ if (!app.requestSingleInstanceLock()) {
         win.webContents.sendInputEvent({ type: "keyDown", keyCode: "D", modifiers: ["control", "shift"] });
         win.webContents.sendInputEvent({ type: "keyUp", keyCode: "D", modifiers: ["control", "shift"] });
       }, wait * 0.7);
+      // Shift+drag must leave a selection that survives the mouse moving on,
+      // even when the app tracks every motion (hqtui hover, DECSET 1003).
+      let selection = "not run";
+      setTimeout(() => {
+        const p = [...ptys.values()].pop();
+        if (p) p.write("clear; printf 'select me please\\n\\033[?1003h'\r");
+      }, wait * 0.75);
+      setTimeout(async () => {
+        if (!win) return;
+        try {
+          const r = await win.webContents.executeJavaScript(`(() => {
+            const b = document.querySelector(".pane.focused .xterm-screen").getBoundingClientRect();
+            return { x: Math.round(b.left + 4), y: Math.round(b.top + 6), mode: window.hqSmoke.mouseMode() };
+          })()`);
+          const send = (type, x, modifiers) => win.webContents.sendInputEvent({ type, x, y: r.y, button: "left", clickCount: 1, modifiers });
+          send("mouseDown", r.x, ["shift"]);
+          for (let x = r.x; x <= r.x + 80; x += 10) send("mouseMove", x, ["shift", "leftButtonDown"]);
+          send("mouseUp", r.x + 80, ["shift"]);
+          await new Promise((res) => setTimeout(res, 100));
+          for (let x = r.x + 80; x <= r.x + 140; x += 10) win.webContents.sendInputEvent({ type: "mouseMove", x, y: r.y + 20 });
+          await new Promise((res) => setTimeout(res, 300));
+          const sel = await win.webContents.executeJavaScript("window.hqSmoke.selection()");
+          selection = r.mode !== "any" ? `mouse mode ${r.mode}, not any` : sel ? "" : "cleared after release";
+        } catch (err) {
+          selection = `error: ${err && err.message}`;
+        }
+      }, wait * 0.85);
       setTimeout(async () => {
         const shot = process.env.HQTERM_DESKTOP_SMOKE_SHOT;
         if (shot && win) {
@@ -356,6 +387,10 @@ if (!app.requestSingleInstanceLock()) {
         if (clipped.length) {
           console.log(`hqterm-desktop smoke: clipped: ${clipped.join("; ")}`);
           return app.exit(4);
+        }
+        if (selection) {
+          console.log(`hqterm-desktop smoke: selection: ${selection}`);
+          return app.exit(5);
         }
         console.log(`hqterm-desktop smoke: ok (ptys=${ptys.size})`);
         app.exit(ptys.size > 0 ? 0 : 3);
