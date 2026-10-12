@@ -79,3 +79,58 @@ jobs:
           name: hqterm-desktop-linux-x86_64
           path: desktop/dist/*.AppImage
           retention-days: 7
+
+  # macOS (both CPUs) and Windows: build the installers, then launch the
+  # unpacked app twice for real (window, PTYs, split, layout restore).
+  desktop-mac-win:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-latest, os: mac, arch: arm64 }
+          - { runner: macos-15-intel, os: mac, arch: x64 }
+          - { runner: windows-latest, os: win, arch: x64 }
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
+      - name: Build
+        run: |
+          # hdiutil sometimes cannot eject the dmg ("Resource busy"), mostly
+          # from Spotlight indexing it: turn that off and retry.
+          if [ "${{ matrix.os }}" = mac ]; then sudo mdutil -a -i off >/dev/null 2>&1 || true; fi
+          for i in 1 2 3; do
+            npm run dist:${{ matrix.os }} -- --${{ matrix.arch }} && exit 0
+            echo "build attempt $i failed"; sleep 10
+          done
+          exit 1
+        env:
+          CSC_FOR_PULL_REQUEST: "true"
+      - name: List and check the build
+        run: |
+          ls -la dist
+          if [ "${{ matrix.os }}" = mac ]; then ls dist/mac*; codesign --verify --deep --strict --verbose=2 dist/mac*/*.app; fi
+      - name: Smoke test
+        run: |
+          if [ "${{ matrix.os }}" = mac ]; then exe="$(ls dist/mac*/*.app/Contents/MacOS/* | head -n1)"; else exe="$(ls dist/win*-unpacked/*.exe | head -n1)"; fi
+          echo "launching $exe"
+          scripts/ci-smoke.sh "$exe"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hqterm-desktop-smoke-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            desktop/smoke-*.png
+            desktop/smoke-*.log
+          retention-days: 7

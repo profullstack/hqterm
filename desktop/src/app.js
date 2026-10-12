@@ -5,10 +5,11 @@
   const L = window.HqLayout;
   const hq = window.hq;
   const $ = (sel) => document.querySelector(sel);
-  const INSTALL = "curl -fsSL https://hqterm.sh/install | sh";
   const MAX_WEBGL = 12;
 
   const init = await hq.init();
+  const MAC = init.platform === "darwin";
+  const INSTALL = init.platform === "win32" ? "irm https://hqterm.sh/install.ps1 | iex" : "curl -fsSL https://hqterm.sh/install | sh";
   const config = init.config;
   let fontSize = config.fontSize;
   const theme = Object.assign(
@@ -97,6 +98,8 @@
       scrollback: 10000,
       cursorBlink: true,
       macOptionIsMeta: true,
+      // On macOS xterm.js forces a selection with Option+drag, not Shift+drag.
+      macOptionClickForcesSelection: true,
       allowTransparency: false,
     });
     const rt = { pane, spec: pane.spec, el, term, fit: new FitAddon.FitAddon(), title: "", opened: false };
@@ -583,10 +586,16 @@
     (e) => {
       if (e.key === "Escape" && !menu.hidden) return closeMenu();
       let handled = true;
-      if (e.ctrlKey && e.key === "Tab") activate(active + (e.shiftKey ? -1 : 1));
+      // macOS: Cmd+<key> does what Ctrl+Shift+<key> does (Cmd+Shift+D splits down).
+      const cmd = MAC && e.metaKey && !e.ctrlKey && !e.altKey;
+      if (cmd && e.shiftKey && e.code === "KeyD") splitFocused("column");
+      else if (cmd && !e.shiftKey && (e.key === "=" || e.key === "+")) zoom(1);
+      else if (cmd && !e.shiftKey && e.key === "-") zoom(-1);
+      else if (cmd && !e.shiftKey && e.key === "0") zoom(0);
+      else if (e.ctrlKey && e.key === "Tab") activate(active + (e.shiftKey ? -1 : 1));
       else if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key === "PageDown") activate(active + 1);
       else if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key === "PageUp") activate(active - 1);
-      else if (e.ctrlKey && e.shiftKey && !e.altKey) {
+      else if ((e.ctrlKey && e.shiftKey && !e.altKey) || cmd) {
         switch (e.code) {
           case "KeyT":
             newTab({ kind: "shell" });

@@ -5,8 +5,10 @@
 # Installs hqsh (the client and the host side of hqterm sessions) from the
 # latest GitHub release of profullstack/hqsh into ~\.local\bin (or
 # $env:HQTERM_BIN), checks it against SHA256SUMS, and puts that directory on
-# your user PATH so ssh sessions find it. No admin rights. Safe to run again.
-# Pin a version with $env:HQSH_VERSION = "v0.3.0".
+# your user PATH so ssh sessions find it. Then the hqterm desktop app, from the
+# latest profullstack/hqterm release, installed per user (Start menu entry);
+# skipped over ssh or with $env:HQTERM_NO_DESKTOP = "1". No admin rights. Safe
+# to run again. Pin versions with $env:HQSH_VERSION / $env:HQTERM_VERSION.
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
@@ -86,4 +88,36 @@ if (-not (Get-Service -Name sshd -ErrorAction SilentlyContinue)) {
   Say '  Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0'
   Say "  Start-Service sshd; Set-Service sshd -StartupType Automatic"
 }
-Say 'done. Connect from here with: hqsh <host>   (or hqterm on Linux/macOS)'
+# The desktop app: a per-user NSIS installer, run silently. Windows on ARM
+# runs the x64 build under emulation.
+$desktop = -not $env:HQTERM_NO_DESKTOP -and -not $env:SSH_CONNECTION
+if ($desktop) {
+  $hqBase = if ($env:HQTERM_VERSION) {
+    "https://github.com/profullstack/hqterm/releases/download/$($env:HQTERM_VERSION)"
+  } else {
+    'https://github.com/profullstack/hqterm/releases/latest/download'
+  }
+  $asset = 'hqterm-desktop-windows-x64-setup.exe'
+  $tmp = Join-Path ([IO.Path]::GetTempPath()) ("hqterm-" + [Guid]::NewGuid())
+  New-Item -ItemType Directory -Path $tmp | Out-Null
+  try {
+    Say "downloading $asset from github.com/profullstack/hqterm"
+    $file = Join-Path $tmp $asset
+    Invoke-WebRequest -UseBasicParsing "$hqBase/$asset" -OutFile $file
+    Invoke-WebRequest -UseBasicParsing "$hqBase/SHA256SUMS" -OutFile (Join-Path $tmp 'SHA256SUMS')
+    $line = Get-Content (Join-Path $tmp 'SHA256SUMS') | Where-Object { $_ -match "\s\*?$([regex]::Escape($asset))$" } | Select-Object -First 1
+    if (-not $line) { throw "$asset is not listed in SHA256SUMS" }
+    $want = ($line -split '\s+')[0].ToLower()
+    $got = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLower()
+    if ($want -ne $got) { throw "checksum mismatch for $asset (expected $want, got $got)" }
+    Say "verified $asset (sha256 $got)"
+    $p = Start-Process -FilePath $file -ArgumentList '/S' -Wait -PassThru
+    if ($p.ExitCode -ne 0) { throw "the installer exited with $($p.ExitCode)" }
+    Say "installed the hqterm desktop app (Start menu: hqterm)"
+  } catch {
+    Say "warning: the desktop app was not installed ($($_.Exception.Message)); hqsh is"
+  } finally {
+    Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+  }
+}
+Say 'done. Open hqterm from the Start menu, or connect from here with: hqsh <host>'

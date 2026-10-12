@@ -86,7 +86,10 @@ function listHosts() {
   }
 }
 
+const WIN = process.platform === "win32";
+
 function loginShell() {
+  if (WIN) return which("pwsh.exe") || which("powershell.exe") || process.env.COMSPEC || "cmd.exe";
   let sh = process.env.SHELL;
   if (!sh) {
     try {
@@ -96,6 +99,24 @@ function loginShell() {
   return sh && fs.existsSync(sh) ? sh : "/bin/sh";
 }
 
+/** The PATH key of an env object: Windows spells it "Path". */
+const pathKey = (env) => Object.keys(env).find((k) => k.toUpperCase() === "PATH") || "PATH";
+
+/** `name` on the panes' PATH (with PATHEXT on Windows), or undefined. */
+function which(name, env = paneEnv()) {
+  const exts = WIN && !path.extname(name) ? (env.PATHEXT || ".EXE;.CMD;.BAT").split(";") : [""];
+  for (const dir of (env[pathKey(env)] || "").split(path.delimiter)) {
+    if (!dir) continue;
+    for (const ext of exts) {
+      const f = path.join(dir, name + ext);
+      try {
+        if (fs.statSync(f).isFile()) return f;
+      } catch {}
+    }
+  }
+  return undefined;
+}
+
 /** The environment every pane starts with. */
 function paneEnv() {
   const env = { ...process.env };
@@ -103,9 +124,16 @@ function paneEnv() {
   // AppImage runtime variables would leak into every child.
   for (const k of ["APPDIR", "APPIMAGE", "ARGV0", "OWD", "NO_AT_BRIDGE"]) delete env[k];
   if (env.LD_LIBRARY_PATH && process.env.APPDIR && env.LD_LIBRARY_PATH.includes(process.env.APPDIR)) delete env.LD_LIBRARY_PATH;
-  const localBin = path.join(os.homedir(), ".local", "bin");
-  const parts = (env.PATH || "/usr/local/bin:/usr/bin:/bin").split(":");
-  if (!parts.includes(localBin)) env.PATH = [localBin, ...parts].join(":");
+  // ~/.local/bin is where both installers put hqsh and hqterm. A macOS app
+  // started from Finder gets only /usr/bin:/bin:/usr/sbin:/sbin, so add
+  // Homebrew's and /usr/local's bin too.
+  const key = pathKey(env);
+  const parts = (env[key] || (WIN ? "" : "/usr/local/bin:/usr/bin:/bin")).split(path.delimiter).filter(Boolean);
+  const extra = [path.join(os.homedir(), ".local", "bin")];
+  if (process.platform === "darwin") extra.push("/opt/homebrew/bin", "/usr/local/bin");
+  env[key] = [...extra.filter((d) => !parts.includes(d)), ...parts].join(path.delimiter);
+  // Finder sets no locale either, and without one shells mangle emoji.
+  if (process.platform === "darwin" && !env.LANG && !env.LC_ALL && !env.LC_CTYPE) env.LANG = "en_US.UTF-8";
   Object.assign(env, {
     TERM: "xterm-256color",
     COLORTERM: "truecolor",
@@ -123,7 +151,8 @@ function startDir() {
   const owd = process.env.OWD;
   if (owd && owd !== "/" && fs.existsSync(owd)) return owd;
   const cwd = process.cwd();
-  return cwd && cwd !== "/" ? cwd : os.homedir();
+  // Started from a launcher, the cwd is / (Linux, macOS) or the install dir (Windows).
+  return cwd && cwd !== "/" && cwd !== path.dirname(process.execPath) ? cwd : os.homedir();
 }
 
 /** [file, args] for a pane spec; host and session are checked before they reach a shell. */
@@ -133,10 +162,13 @@ function command(spec) {
     // hqsh forwards only TERM. sshd accepts LC_* by default (AcceptEnv LANG LC_*),
     // a new session's shell inherits it, and hqtui reads LC_TERMINAL=iTerm2 as
     // "draw iTerm2 inline images": so remote hqtui/qc draw HD images here too.
+    // Windows has no /bin/sh: run hqsh.exe straight off the PATH.
+    if (WIN) return [which("hqsh.exe"), [spec.host, "--session", session, "--", "-o", "SetEnv=LC_TERMINAL=iTerm2"]];
     return ["/bin/sh", ["-lc", 'exec hqsh "$0" --session "$1" -- -o SetEnv=LC_TERMINAL=iTerm2', spec.host, session]];
   }
-  if (spec && spec.kind === "hqterm") return ["/bin/sh", ["-lc", "exec hqterm"]];
-  return [loginShell(), ["-l"]];
+  if (spec && spec.kind === "hqterm") return WIN ? [which("hqterm.exe"), []] : ["/bin/sh", ["-lc", "exec hqterm"]];
+  const sh = loginShell();
+  return [sh, WIN ? (/pwsh|powershell/i.test(sh) ? ["-NoLogo"] : []) : ["-l"]];
 }
 
 let pty;
@@ -209,7 +241,10 @@ ipcMain.handle("layout:save", (_e, data) => {
 
 ipcMain.handle("pty:spawn", (e, { spec, cols, rows }) => {
   pty = pty || require("node-pty");
-  const [file, args] = command(spec);
+  let [file, args] = command(spec);
+  // Not installed (Windows; elsewhere the shell exits 127 by itself): exit 127
+  // the same way, so the pane says how to install it.
+  if (!file) [file, args] = [process.env.COMSPEC || "cmd.exe", ["/d", "/c", "exit 127"]];
   const id = nextPty++;
   const p = pty.spawn(file, args, {
     name: "xterm-256color",
@@ -297,8 +332,9 @@ if (!app.requestSingleInstanceLock()) {
     }
   });
   app.whenReady().then(() => {
-    // No menu: Ctrl+W, Ctrl+R and friends belong to the shell.
-    Menu.setApplicationMenu(null);
+    // No menu: Ctrl+W, Ctrl+R and friends belong to the shell. macOS keeps
+    // the app menu (Cmd+Q, Cmd+H); Cmd+T/W/C/V/D are handled in the renderer.
+    Menu.setApplicationMenu(process.platform === "darwin" ? Menu.buildFromTemplate([{ role: "appMenu" }]) : null);
     createWindow();
     // What the GPU is doing, for "why is it slow": ~/.config/hqterm/desktop.log.
     try {
@@ -352,9 +388,11 @@ if (!app.requestSingleInstanceLock()) {
           }
           if (!win || !r) return;
           const send = (type, x, modifiers) => win.webContents.sendInputEvent({ type, x, y: r.y, button: "left", clickCount: 1, modifiers });
-          send("mouseDown", r.x, ["shift"]);
-          for (let x = r.x; x <= r.x + 80; x += 10) send("mouseMove", x, ["shift", "leftButtonDown"]);
-          send("mouseUp", r.x + 80, ["shift"]);
+          // The modifier that forces a selection: Option on macOS, Shift elsewhere.
+          const force = process.platform === "darwin" ? "alt" : "shift";
+          send("mouseDown", r.x, [force]);
+          for (let x = r.x; x <= r.x + 80; x += 10) send("mouseMove", x, [force, "leftButtonDown"]);
+          send("mouseUp", r.x + 80, [force]);
           await sleep(100);
           for (let x = r.x + 80; x <= r.x + 140; x += 10) win.webContents.sendInputEvent({ type: "mouseMove", x, y: r.y + 20 });
           await sleep(300);

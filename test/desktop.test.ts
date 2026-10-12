@@ -101,9 +101,11 @@ describe("install.sh flags", () => {
     return { code: p.exitCode, out: p.stdout.toString().trim(), err: p.stderr.toString() };
   };
   const linux = process.platform === "linux";
+  const mac = process.platform === "darwin";
 
-  test("defaults: desktop only on a Linux display", () => {
-    expect(run([]).out).toBe("bin=/h/.local/bin server=0 desktop=0 auto=1");
+  test("defaults: desktop on a Linux display or a Mac not over ssh", () => {
+    expect(run([]).out).toBe(`bin=/h/.local/bin server=0 desktop=${mac ? 1 : 0} auto=1`);
+    expect(run([], { SSH_CONNECTION: "1.2.3.4 5 6.7.8.9 22" }).out).toBe("bin=/h/.local/bin server=0 desktop=0 auto=1");
     expect(run([], { DISPLAY: ":0" }).out).toBe(`bin=/h/.local/bin server=0 desktop=${linux ? 1 : 0} auto=1`);
     expect(run([], { WAYLAND_DISPLAY: "wayland-0" }).out).toBe(`bin=/h/.local/bin server=0 desktop=${linux ? 1 : 0} auto=1`);
   });
@@ -112,7 +114,7 @@ describe("install.sh flags", () => {
     expect(run(["--desktop"]).out).toBe("bin=/h/.local/bin server=0 desktop=1 auto=0");
     expect(run(["--no-desktop"], { DISPLAY: ":0" }).out).toBe("bin=/h/.local/bin server=0 desktop=0 auto=0");
     expect(run(["--server"], { DISPLAY: ":0" }).out).toBe("bin=/h/.local/bin server=1 desktop=0 auto=0");
-    expect(run(["--bin=/opt/b"]).out).toBe("bin=/opt/b server=0 desktop=0 auto=1");
+    expect(run(["--bin=/opt/b"]).out).toBe(`bin=/opt/b server=0 desktop=${mac ? 1 : 0} auto=1`);
   });
 
   test("bad combinations fail", () => {

@@ -55,8 +55,67 @@ jobs:
           name: desktop-${{ matrix.arch }}
           path: desktop/dist/hqterm-desktop-linux-${{ matrix.arch }}.AppImage
 
+  # macOS (Apple Silicon + Intel, ad-hoc signed .dmg/.zip) and Windows
+  # (per-user NSIS installer + portable .zip). Built and launched natively.
+  desktop-mac-win:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-latest, os: mac, arch: arm64 }
+          - { runner: macos-15-intel, os: mac, arch: x64 }
+          - { runner: windows-latest, os: win, arch: x64 }
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Tag matches desktop/package.json
+        run: |
+          want="v$(node -p 'require("./package.json").version')"
+          [ "$want" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME but desktop/package.json says $want"; exit 1; }
+      - run: npm ci
+      - run: npm test
+      - name: Build
+        run: |
+          # hdiutil sometimes cannot eject the dmg ("Resource busy"), mostly
+          # from Spotlight indexing it: turn that off and retry.
+          if [ "${{ matrix.os }}" = mac ]; then sudo mdutil -a -i off >/dev/null 2>&1 || true; fi
+          for i in 1 2 3; do
+            npm run dist:${{ matrix.os }} -- --${{ matrix.arch }} && exit 0
+            echo "build attempt $i failed"; sleep 10
+          done
+          exit 1
+      - name: Check and smoke test
+        run: |
+          ls -la dist
+          if [ "${{ matrix.os }}" = mac ]; then
+            ls dist/mac*; codesign --verify --deep --strict --verbose=2 dist/mac*/*.app
+            exe="$(ls dist/mac*/*.app/Contents/MacOS/* | head -n1)"
+          else
+            exe="$(ls dist/win*-unpacked/*.exe | head -n1)"
+          fi
+          scripts/ci-smoke.sh "$exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            desktop/dist/hqterm-desktop-macos-*.dmg
+            desktop/dist/hqterm-desktop-macos-*.zip
+            desktop/dist/hqterm-desktop-windows-*-setup.exe
+            desktop/dist/hqterm-desktop-windows-*.zip
+          if-no-files-found: error
+
   release:
-    needs: desktop
+    needs: [desktop, desktop-mac-win]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

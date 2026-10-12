@@ -67,16 +67,16 @@
 <h2 id="install">Install</h2>
 <table>
   <tr><th>Where</th><th>Command</th><th>Installs</th></tr>
-  <tr><td>Your Linux or macOS machine</td><td><code>curl -fsSL https://hqterm.sh/install | sh</code></td><td>hqterm and hqsh in <code>~/.local/bin</code>, plus the desktop app on a Linux desktop</td></tr>
+  <tr><td>Your Linux or macOS machine</td><td><code>curl -fsSL https://hqterm.sh/install | sh</code></td><td>hqterm and hqsh in <code>~/.local/bin</code>, plus the desktop app on a Linux desktop or a Mac</td></tr>
   <tr><td>A Linux or macOS server</td><td><code>curl -fsSL https://hqterm.sh/install | sh -s -- --server</code></td><td>hqsh only. It also runs <code>hqsh server setup</code>, which turns on systemd lingering.</td></tr>
-  <tr><td>Windows (PC or server)</td><td><code>irm https://hqterm.sh/install.ps1 | iex</code></td><td>hqsh.exe in <code>~\.local\bin</code>, added to your user PATH</td></tr>
-  <tr><td>Desktop app only</td><td><code>curl -fsSL https://hqterm.sh/install | sh -s -- --desktop</code></td><td>The Linux AppImage in <code>~/.local/opt/hqterm-desktop</code>, plus a launcher entry</td></tr>
+  <tr><td>Windows (PC or server)</td><td><code>irm https://hqterm.sh/install.ps1 | iex</code></td><td>hqsh.exe in <code>~\.local\bin</code>, added to your user PATH, plus the desktop app (not over ssh; <code>$env:HQTERM_NO_DESKTOP = "1"</code> skips it)</td></tr>
+  <tr><td>Desktop app only</td><td><code>curl -fsSL https://hqterm.sh/install | sh -s -- --desktop</code></td><td>Linux: the AppImage in <code>~/.local/opt/hqterm-desktop</code>, plus a launcher entry. macOS: <code>~/Applications/hqterm.app</code></td></tr>
 </table>
 <p>Nothing needs sudo or admin rights, and the installers are safe to run again. Every download is checked against the release's <code>SHA256SUMS</code>. hqsh must be installed on both ends: the plain install covers your machine, and <code>--server</code> covers each host.</p>
 <table>
   <tr><th>install.sh option</th><th></th></tr>
   <tr><td>--server</td><td>Install hqsh only, for hosts you connect to</td></tr>
-  <tr><td>--desktop / --no-desktop</td><td>Always or never install the desktop app. By default it is installed on Linux when a display is present.</td></tr>
+  <tr><td>--desktop / --no-desktop</td><td>Always or never install the desktop app. By default it is installed on Linux when a display is present, and on a Mac unless you are logged in over ssh.</td></tr>
   <tr><td>--bin=DIR</td><td>Install into DIR instead of <code>~/.local/bin</code> (or <code>$HQTERM_BIN</code>)</td></tr>
   <tr><td>HQTERM_VERSION, HQSH_VERSION</td><td>Pin a release, for example <code>HQSH_VERSION=v0.3.0</code></td></tr>
 </table>
@@ -170,7 +170,15 @@ systemctl --user stop hqsh-main.service   <span class="c"># end a session (its s
 <pre><code>for h in web1 web2 db1; do ssh "$h" 'curl -fsSL https://hqterm.sh/install | sh -s -- --server'; done</code></pre>
 
 <h2 id="desktop">The desktop app</h2>
-<p>hqterm's own terminal window (Electron and xterm.js with WebGL): tabs, split panes that come back where you left them, and hqtui/qc images and HD emoji drawn in full. Linux x86_64 and arm64.</p>
+<p>hqterm's own terminal window (Electron and xterm.js with WebGL): tabs, split panes that come back where you left them, and hqtui/qc images and HD emoji drawn in full. Linux, macOS and Windows.</p>
+<table>
+  <tr><th>Platform</th><th>Download</th></tr>
+  <tr><td>macOS, Apple silicon</td><td><a href="https://github.com/profullstack/hqterm/releases/latest/download/hqterm-desktop-macos-arm64.dmg">hqterm-desktop-macos-arm64.dmg</a> (or <a href="https://github.com/profullstack/hqterm/releases/latest/download/hqterm-desktop-macos-arm64.zip">.zip</a>)</td></tr>
+  <tr><td>macOS, Intel</td><td><a href="https://github.com/profullstack/hqterm/releases/latest/download/hqterm-desktop-macos-x64.dmg">hqterm-desktop-macos-x64.dmg</a> (or <a href="https://github.com/profullstack/hqterm/releases/latest/download/hqterm-desktop-macos-x64.zip">.zip</a>)</td></tr>
+  <tr><td>Windows 10/11 (x64; ARM64 runs it emulated)</td><td><a href="https://github.com/profullstack/hqterm/releases/latest/download/hqterm-desktop-windows-x64-setup.exe">hqterm-desktop-windows-x64-setup.exe</a> (per user, no admin), or the portable <a href="https://github.com/profullstack/hqterm/releases/latest/download/hqterm-desktop-windows-x64.zip">.zip</a></td></tr>
+  <tr><td>Linux x86_64 / arm64</td><td><a href="https://github.com/profullstack/hqterm/releases/latest/download/hqterm-desktop-linux-x86_64.AppImage">x86_64 AppImage</a> / <a href="https://github.com/profullstack/hqterm/releases/latest/download/hqterm-desktop-linux-aarch64.AppImage">aarch64 AppImage</a></td></tr>
+</table>
+<p>The installers above (<code>install</code> and <code>install.ps1</code>) fetch the right one for you. The Mac and Windows builds are not signed by Apple or Microsoft yet. On a Mac, a .dmg downloaded in a browser opens after a right-click on hqterm, then <b>Open</b> (or <code>xattr -dr com.apple.quarantine /Applications/hqterm.app</code>); the curl installer needs none of that. On Windows, SmartScreen may ask once: <b>More info</b>, then <b>Run anyway</b>. Panes run your login shell; on Windows that is PowerShell 7 (<code>pwsh</code>) when installed, else Windows PowerShell, and remote panes need <code>hqsh.exe</code> on your PATH (install.ps1 puts it there).</p>
 <table>
   <tr><th>Key</th><th></th></tr>
   <tr><td>Ctrl+Shift+T / W</td><td>New tab / close tab. Ctrl+Tab and Ctrl+PgUp/PgDn switch tabs.</td></tr>
@@ -180,6 +188,7 @@ systemctl --user stop hqsh-main.service   <span class="c"># end a session (its s
   <tr><td>Ctrl+Shift+C / V</td><td>Copy / paste</td></tr>
   <tr><td>Ctrl+= / Ctrl+- / Ctrl+0</td><td>Zoom in / out / reset</td></tr>
 </table>
+<p>On macOS, Cmd works in place of Ctrl+Shift (Cmd+T, Cmd+W, Cmd+C, Cmd+V, Cmd+D; Cmd+Shift+D splits down), Cmd+= / Cmd+- / Cmd+0 zoom, and Cmd+Q quits. Option is Meta.</p>
 <p>The <b>+</b> button opens a shell, the session manager, or any host (as <code>hqsh host --session main</code>). The layout (tabs, splits, each remote pane's host and session) is saved to <code>~/.config/hqterm/desktop-layout.json</code>. The next launch reattaches every remote pane; local panes come back as fresh shells.</p>
 <p><b>Settings</b> live in <code>~/.config/hqterm/desktop.json</code>:</p>
 <pre><code>{ "fontFamily": "JetBrains Mono", "fontSize": 15, "theme": { "background": "#000" }, "restore": true, "gpu": true }</code></pre>
