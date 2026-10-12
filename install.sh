@@ -1,15 +1,15 @@
 #!/bin/sh
 # hqterm installer: https://hqterm.sh
 #
-#   curl -fsSL https://hqterm.sh/install | sh                  # hqterm + hqsh (+ desktop app on a Linux desktop)
+#   curl -fsSL https://hqterm.sh/install | sh                  # hqterm + hqsh (+ desktop app on a Linux desktop or a Mac)
 #   curl -fsSL https://hqterm.sh/install | sh -s -- --desktop  # also the desktop app, display or not
 #   curl -fsSL https://hqterm.sh/install | sh -s -- --server   # hqsh only (remote hosts)
 #
 # Installs prebuilt binaries from the latest GitHub releases of
 # profullstack/hqterm and profullstack/hqsh into ~/.local/bin (or $HQTERM_BIN).
-# The desktop app (Linux x86_64/arm64 AppImage) goes to
-# ~/.local/opt/hqterm-desktop with an app-launcher entry. No sudo, safe to run
-# again. Pin versions with HQTERM_VERSION / HQSH_VERSION (e.g. v0.2.0).
+# The desktop app goes to ~/.local/opt/hqterm-desktop with an app-launcher
+# entry on Linux (x86_64/arm64 AppImage), and to ~/Applications/hqterm.app on
+# macOS (Apple silicon/Intel). No sudo, safe to run again. Pin versions with HQTERM_VERSION / HQSH_VERSION (e.g. v0.2.0).
 set -eu
 
 BIN="${HQTERM_BIN:-$HOME/.local/bin}"
@@ -24,9 +24,9 @@ for arg in "$@"; do
     -h|--help)
       echo "usage: install.sh [--server] [--desktop|--no-desktop] [--bin=DIR]"
       echo "  --server      install only hqsh (for hosts you connect to)"
-      echo "  --desktop     also install the hqterm desktop app (Linux AppImage)"
+      echo "  --desktop     also install the hqterm desktop app (Linux AppImage, macOS app)"
       echo "  --no-desktop  never install the desktop app"
-      echo "                (default: install it on Linux when a display is present)"
+      echo "                (default: on Linux with a display, and on a Mac not over ssh)"
       echo "  --bin=DIR     install into DIR (default ~/.local/bin, or \$HQTERM_BIN)"
       exit 0 ;;
     *) echo "hqterm install: unknown option $arg" >&2; exit 2 ;;
@@ -42,7 +42,11 @@ fi
 DESKTOP_AUTO=0
 if [ "$DESKTOP" = auto ]; then
   DESKTOP_AUTO=1
-  if [ "$(uname -s)" = Linux ] && [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then DESKTOP=1; else DESKTOP=0; fi
+  DESKTOP=0
+  case "$(uname -s)" in
+    Linux) [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && DESKTOP=1 ;;
+    Darwin) [ -z "${SSH_CONNECTION:-}${SSH_TTY:-}" ] && DESKTOP=1 ;;
+  esac
 fi
 if [ -n "${HQTERM_INSTALL_PARSE_ONLY:-}" ]; then
   echo "bin=$BIN server=$SERVER desktop=$DESKTOP auto=$DESKTOP_AUTO"
@@ -148,11 +152,38 @@ have_libfuse2() {
   return 1
 }
 
-# install_desktop: the AppImage, an icon and an app-launcher entry (Linux only).
+# install_desktop_mac: hqterm.app into ~/Applications (no admin rights).
+install_desktop_mac() {
+  case "$ARCH" in
+    amd64) march=x64 ;;
+    *) march=arm64 ;;
+  esac
+  asset="hqterm-desktop-macos-$march.zip"
+  base="$(release_base hqterm "${HQTERM_VERSION:-}")"
+  say "downloading $asset"
+  fetch "$base/$asset" "$TMP/$asset" || return 1
+  verify "$base" "$asset" hqterm
+  # A copy dragged into /Applications from the .dmg is updated where it is.
+  apps="$HOME/Applications"
+  if [ -d /Applications/hqterm.app ] && [ -w /Applications ] && [ -w /Applications/hqterm.app ]; then apps=/Applications; fi
+  mkdir -p "$apps" "$TMP/app"
+  ditto -x -k "$TMP/$asset" "$TMP/app" || return 1
+  [ -d "$TMP/app/hqterm.app" ] || return 1
+  # Downloaded with curl, so no quarantine flag; clear it anyway, since the
+  # app is ad-hoc signed and Gatekeeper would refuse a quarantined copy.
+  xattr -dr com.apple.quarantine "$TMP/app/hqterm.app" 2>/dev/null || true
+  rm -rf "$apps/hqterm.app"
+  mv "$TMP/app/hqterm.app" "$apps/hqterm.app"
+  say "installed $apps/hqterm.app (open it from Launchpad, Spotlight or: open -a hqterm)"
+  return 0
+}
+
+# install_desktop: the AppImage, an icon and an app-launcher entry (Linux),
+# or the .app (macOS).
 install_desktop() {
-  if [ "$OS" != linux ]; then
-    say "the desktop app is Linux-only for now; skipping it"
-    return 1
+  if [ "$OS" = darwin ]; then
+    install_desktop_mac
+    return
   fi
   case "$ARCH" in
     amd64) aarch=x86_64 ;;
@@ -234,7 +265,7 @@ DESKTOP_OK=0
 if [ "$DESKTOP" = 1 ]; then
   if install_desktop; then
     DESKTOP_OK=1
-  elif [ "$DESKTOP_AUTO" = 1 ] || [ "$OS" != linux ]; then
+  elif [ "$DESKTOP_AUTO" = 1 ]; then
     say "warning: the desktop app was not installed; hqterm and hqsh are"
   else
     die "could not download the desktop app for $OS-$ARCH (no release asset yet?)"

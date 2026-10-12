@@ -55,6 +55,15 @@ is missing (current Ubuntu/Kubuntu ship only fuse3) it unpacks the app once into
 does this too on Linux when `$DISPLAY` or `$WAYLAND_DISPLAY` is set;
 `--no-desktop` skips it.
 
+macOS and Windows builds are on every release too: `hqterm-desktop-macos-{arm64,x64}.{dmg,zip}`
+(ad-hoc signed; the installer puts it in `~/Applications/hqterm.app` on a Mac
+not reached over ssh) and `hqterm-desktop-windows-x64-setup.exe` / `.zip`
+(per-user, no admin; `install.ps1` runs it silently unless
+`$env:HQTERM_NO_DESKTOP` is set). Neither is notarized/code-signed yet, so the
+first launch of a browser download needs right-click > Open (macOS) or
+More info > Run anyway (SmartScreen). On macOS, Cmd+<key> does what
+Ctrl+Shift+<key> does.
+
 | Keys | |
 | --- | --- |
 | Ctrl+Shift+T / W | new tab / close tab; Ctrl+Tab, Ctrl+PgUp/PgDn switch |
@@ -76,7 +85,9 @@ Settings: `~/.config/hqterm/desktop.json`, e.g.
 (the default font size is 15).
 
 Develop: `cd desktop && npm install && npm start` (needs bun and a C++
-toolchain for node-pty); `npm run dist` builds the AppImage.
+toolchain for node-pty); `npm run dist` builds the AppImage, `npm run dist:mac`
+the macOS .dmg/.zip and `npm run dist:win` the Windows installer/.zip (each on
+its own OS).
 
 ## Develop
 
@@ -88,8 +99,9 @@ bun run build      # single binary in dist/
 ```
 
 Releases: push a `v*` tag matching package.json; CI builds
-`hqterm-{linux,darwin}-{amd64,arm64}`, `hqterm-desktop-linux-{x86_64,aarch64}.AppImage`
-and `SHA256SUMS` (bump `desktop/package.json` too).
+`hqterm-{linux,darwin}-{amd64,arm64}`, `hqterm-desktop-linux-{x86_64,aarch64}.AppImage`,
+`hqterm-desktop-macos-{arm64,x64}.{dmg,zip}`, `hqterm-desktop-windows-x64-setup.exe`,
+`hqterm-desktop-windows-x64.zip` and `SHA256SUMS` (bump `desktop/package.json` too).
 
 `site/index.html` is the hqterm.sh landing page and `site/docs.html` is
 https://hqterm.sh/docs; `install.sh` is served at https://hqterm.sh/install and
