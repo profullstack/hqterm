@@ -106,13 +106,15 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run dist:${{ matrix.os }} -- --${{ matrix.arch }}
+        env:
+          CSC_FOR_PULL_REQUEST: "true"
       - name: List and check the build
         run: |
           ls -la dist
-          if [ "${{ matrix.os }}" = mac ]; then codesign --verify --deep --strict --verbose=2 dist/mac*/hqterm.app; fi
+          if [ "${{ matrix.os }}" = mac ]; then ls dist/mac*; codesign --verify --deep --strict --verbose=2 dist/mac*/*.app; fi
       - name: Smoke test
         run: |
-          if [ "${{ matrix.os }}" = mac ]; then exe="$(ls dist/mac*/hqterm.app/Contents/MacOS/* | head -n1)"; else exe="$(ls dist/win*-unpacked/*.exe | head -n1)"; fi
+          if [ "${{ matrix.os }}" = mac ]; then exe="$(ls dist/mac*/*.app/Contents/MacOS/* | head -n1)"; else exe="$(ls dist/win*-unpacked/*.exe | head -n1)"; fi
           echo "launching $exe"
           scripts/ci-smoke.sh "$exe"
       - uses: actions/upload-artifact@v4

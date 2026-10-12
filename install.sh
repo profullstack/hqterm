@@ -168,6 +168,11 @@ install_desktop_mac() {
   if [ -d /Applications/hqterm.app ] && [ -w /Applications ] && [ -w /Applications/hqterm.app ]; then apps=/Applications; fi
   mkdir -p "$apps" "$TMP/app"
   ditto -x -k "$TMP/$asset" "$TMP/app" || return 1
+  # One .app in the zip, whatever electron-builder named it; installed as hqterm.app.
+  for a in "$TMP/app"/*.app; do
+    [ -d "$a" ] && [ "$a" != "$TMP/app/hqterm.app" ] && mv "$a" "$TMP/app/hqterm.app"
+    break
+  done
   [ -d "$TMP/app/hqterm.app" ] || return 1
   # Downloaded with curl, so no quarantine flag; clear it anyway, since the
   # app is ad-hoc signed and Gatekeeper would refuse a quarantined copy.

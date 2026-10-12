@@ -89,8 +89,8 @@ jobs:
         run: |
           ls -la dist
           if [ "${{ matrix.os }}" = mac ]; then
-            codesign --verify --deep --strict --verbose=2 dist/mac*/hqterm.app
-            exe="$(ls dist/mac*/hqterm.app/Contents/MacOS/* | head -n1)"
+            ls dist/mac*; codesign --verify --deep --strict --verbose=2 dist/mac*/*.app
+            exe="$(ls dist/mac*/*.app/Contents/MacOS/* | head -n1)"
           else
             exe="$(ls dist/win*-unpacked/*.exe | head -n1)"
           fi
