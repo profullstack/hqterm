@@ -84,7 +84,16 @@ jobs:
           [ "$want" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME but desktop/package.json says $want"; exit 1; }
       - run: npm ci
       - run: npm test
-      - run: npm run dist:${{ matrix.os }} -- --${{ matrix.arch }}
+      - name: Build
+        run: |
+          # hdiutil sometimes cannot eject the dmg ("Resource busy"), mostly
+          # from Spotlight indexing it: turn that off and retry.
+          if [ "${{ matrix.os }}" = mac ]; then sudo mdutil -a -i off >/dev/null 2>&1 || true; fi
+          for i in 1 2 3; do
+            npm run dist:${{ matrix.os }} -- --${{ matrix.arch }} && exit 0
+            echo "build attempt $i failed"; sleep 10
+          done
+          exit 1
       - name: Check and smoke test
         run: |
           ls -la dist

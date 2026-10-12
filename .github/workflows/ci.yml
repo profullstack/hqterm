@@ -105,7 +105,16 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npm test
-      - run: npm run dist:${{ matrix.os }} -- --${{ matrix.arch }}
+      - name: Build
+        run: |
+          # hdiutil sometimes cannot eject the dmg ("Resource busy"), mostly
+          # from Spotlight indexing it: turn that off and retry.
+          if [ "${{ matrix.os }}" = mac ]; then sudo mdutil -a -i off >/dev/null 2>&1 || true; fi
+          for i in 1 2 3; do
+            npm run dist:${{ matrix.os }} -- --${{ matrix.arch }} && exit 0
+            echo "build attempt $i failed"; sleep 10
+          done
+          exit 1
         env:
           CSC_FOR_PULL_REQUEST: "true"
       - name: List and check the build
