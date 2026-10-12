@@ -57,7 +57,7 @@ does this too on Linux when `$DISPLAY` or `$WAYLAND_DISPLAY` is set;
 
 macOS and Windows builds are on every release too: `hqterm-desktop-macos-{arm64,x64}.{dmg,zip}`
 (ad-hoc signed; the installer puts it in `~/Applications/hqterm.app` on a Mac
-not reached over ssh) and `hqterm-desktop-windows-x64-setup.exe` / `.zip`
+not reached over ssh) and `hqterm-desktop-windows-{x64,arm64}-setup.exe` / `.zip`
 (per-user, no admin; `install.ps1` runs it silently unless
 `$env:HQTERM_NO_DESKTOP` is set). Neither is notarized/code-signed yet, so the
 first launch of a browser download needs right-click > Open (macOS) or
@@ -100,8 +100,8 @@ bun run build      # single binary in dist/
 
 Releases: push a `v*` tag matching package.json; CI builds
 `hqterm-{linux,darwin}-{amd64,arm64}`, `hqterm-desktop-linux-{x86_64,aarch64}.AppImage`,
-`hqterm-desktop-macos-{arm64,x64}.{dmg,zip}`, `hqterm-desktop-windows-x64-setup.exe`,
-`hqterm-desktop-windows-x64.zip` and `SHA256SUMS` (bump `desktop/package.json` too).
+`hqterm-desktop-macos-{arm64,x64}.{dmg,zip}`, `hqterm-desktop-windows-{x64,arm64}-setup.exe`,
+`hqterm-desktop-windows-{x64,arm64}.zip` and `SHA256SUMS` (bump `desktop/package.json` too).
 
 `site/index.html` is the hqterm.sh landing page and `site/docs.html` is
 https://hqterm.sh/docs; `install.sh` is served at https://hqterm.sh/install and

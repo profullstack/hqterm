@@ -88,8 +88,8 @@ if (-not (Get-Service -Name sshd -ErrorAction SilentlyContinue)) {
   Say '  Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0'
   Say "  Start-Service sshd; Set-Service sshd -StartupType Automatic"
 }
-# The desktop app: a per-user NSIS installer, run silently. Windows on ARM
-# runs the x64 build under emulation.
+# The desktop app: a per-user NSIS installer, run silently. Native on ARM64;
+# a release without an arm64 build falls back to x64 (runs under emulation).
 $desktop = -not $env:HQTERM_NO_DESKTOP -and -not $env:SSH_CONNECTION
 if ($desktop) {
   $hqBase = if ($env:HQTERM_VERSION) {
@@ -97,13 +97,21 @@ if ($desktop) {
   } else {
     'https://github.com/profullstack/hqterm/releases/latest/download'
   }
-  $asset = 'hqterm-desktop-windows-x64-setup.exe'
+  $asset = if ($arch -eq 'arm64') { 'hqterm-desktop-windows-arm64-setup.exe' } else { 'hqterm-desktop-windows-x64-setup.exe' }
   $tmp = Join-Path ([IO.Path]::GetTempPath()) ("hqterm-" + [Guid]::NewGuid())
   New-Item -ItemType Directory -Path $tmp | Out-Null
   try {
     Say "downloading $asset from github.com/profullstack/hqterm"
     $file = Join-Path $tmp $asset
-    Invoke-WebRequest -UseBasicParsing "$hqBase/$asset" -OutFile $file
+    try {
+      Invoke-WebRequest -UseBasicParsing "$hqBase/$asset" -OutFile $file
+    } catch {
+      if ($arch -ne 'arm64') { throw }
+      $asset = 'hqterm-desktop-windows-x64-setup.exe'
+      Say "no arm64 desktop build in this release; using $asset (runs under emulation)"
+      $file = Join-Path $tmp $asset
+      Invoke-WebRequest -UseBasicParsing "$hqBase/$asset" -OutFile $file
+    }
     Invoke-WebRequest -UseBasicParsing "$hqBase/SHA256SUMS" -OutFile (Join-Path $tmp 'SHA256SUMS')
     $line = Get-Content (Join-Path $tmp 'SHA256SUMS') | Where-Object { $_ -match "\s\*?$([regex]::Escape($asset))$" } | Select-Object -First 1
     if (-not $line) { throw "$asset is not listed in SHA256SUMS" }
