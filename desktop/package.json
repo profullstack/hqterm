@@ -1,7 +1,7 @@
 {
   "name": "hqterm-desktop",
   "productName": "hqterm",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "hqterm desktop: a terminal window that shows hqtui/qc images and HD emoji (xterm.js + node-pty).",
   "license": "MIT",
   "author": "Profullstack, Inc. <hello@profullstack.com>",
@@ -13,7 +13,9 @@
     "prepare-assets": "node scripts/prepare.mjs",
     "start": "npm run prepare-assets && electron .",
     "test": "node --test test/layout-tests.js",
-    "dist": "npm run prepare-assets && electron-builder --linux AppImage --publish never"
+    "dist": "npm run prepare-assets && electron-builder --linux AppImage --publish never",
+    "dist:mac": "npm run prepare-assets && electron-builder --mac dmg zip --publish never",
+    "dist:win": "npm run prepare-assets && electron-builder --win nsis zip --publish never"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
@@ -48,12 +50,37 @@
       "category": "System;TerminalEmulator",
       "icon": "build/icon.png",
       "artifactName": "hqterm-desktop-linux-${arch}.${ext}",
-      "executableArgs": ["--no-sandbox"]
+      "executableArgs": [
+        "--no-sandbox"
+      ]
     },
     "mac": {
-      "target": "zip",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools",
       "icon": "build/icon.png",
-      "identity": null
+      "artifactName": "hqterm-desktop-macos-${arch}.${ext}",
+      "identity": "-",
+      "hardenedRuntime": false
+    },
+    "dmg": {
+      "artifactName": "hqterm-desktop-macos-${arch}.${ext}"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "hqterm-desktop-windows-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "hqterm-desktop-windows-${arch}-setup.${ext}",
+      "shortcutName": "hqterm"
     }
   }
 }
