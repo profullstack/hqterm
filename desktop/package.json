@@ -55,6 +55,7 @@
       ]
     },
     "mac": {
+      "executableName": "hqterm",
       "target": [
         "dmg",
         "zip"

@@ -98,6 +98,8 @@
       scrollback: 10000,
       cursorBlink: true,
       macOptionIsMeta: true,
+      // On macOS xterm.js forces a selection with Option+drag, not Shift+drag.
+      macOptionClickForcesSelection: true,
       allowTransparency: false,
     });
     const rt = { pane, spec: pane.spec, el, term, fit: new FitAddon.FitAddon(), title: "", opened: false };

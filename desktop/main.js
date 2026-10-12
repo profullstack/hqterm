@@ -388,9 +388,11 @@ if (!app.requestSingleInstanceLock()) {
           }
           if (!win || !r) return;
           const send = (type, x, modifiers) => win.webContents.sendInputEvent({ type, x, y: r.y, button: "left", clickCount: 1, modifiers });
-          send("mouseDown", r.x, ["shift"]);
-          for (let x = r.x; x <= r.x + 80; x += 10) send("mouseMove", x, ["shift", "leftButtonDown"]);
-          send("mouseUp", r.x + 80, ["shift"]);
+          // The modifier that forces a selection: Option on macOS, Shift elsewhere.
+          const force = process.platform === "darwin" ? "alt" : "shift";
+          send("mouseDown", r.x, [force]);
+          for (let x = r.x; x <= r.x + 80; x += 10) send("mouseMove", x, [force, "leftButtonDown"]);
+          send("mouseUp", r.x + 80, [force]);
           await sleep(100);
           for (let x = r.x + 80; x <= r.x + 140; x += 10) win.webContents.sendInputEvent({ type: "mouseMove", x, y: r.y + 20 });
           await sleep(300);
