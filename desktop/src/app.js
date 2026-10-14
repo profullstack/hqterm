@@ -101,6 +101,9 @@
       // On macOS xterm.js forces a selection with Option+drag, not Shift+drag.
       macOptionClickForcesSelection: true,
       allowTransparency: false,
+      // OSC 8 hyperlinks: xterm.js's default handler asks confirm() and then
+      // window.open()s about:blank, which the main process refuses. Open directly.
+      linkHandler: { activate: (_e, uri) => hq.openUrl(uri) },
     });
     const rt = { pane, spec: pane.spec, el, term, fit: new FitAddon.FitAddon(), title: "", opened: false };
     term.loadAddon(rt.fit);
