@@ -105,6 +105,8 @@ Releases: push a `v*` tag matching package.json; CI builds
 
 `site/index.html` is the hqterm.sh landing page and `site/docs.html` is
 https://hqterm.sh/docs; `install.sh` is served at https://hqterm.sh/install and
-`install.ps1` at https://hqterm.sh/install.ps1.
+`install.ps1` at https://hqterm.sh/install.ps1. Publish them with
+`scripts/deploy-site.sh`, which bakes the pit.world network footer into every
+page and rsyncs the lot to dev2's `/var/www/hqterm.sh`.
 
 MIT.
