@@ -34,5 +34,7 @@ case "$PIT" in
 esac
 
 [ "${1:-}" = "--build" ] && exit 0
-rsync -a "$OUT/" "$DEST"
+# Explicit modes: a restrictive local umask (007) would otherwise publish
+# 0770/0660 files that nginx cannot read, and every page 500s.
+rsync -a --chmod=D755,F644 "$OUT/" "$DEST"
 echo "published to $DEST"
