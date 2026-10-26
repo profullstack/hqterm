@@ -1,6 +1,6 @@
 {
   "name": "hqterm",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Terminal session manager: persistent hqsh sessions with images and HD emoji, built on hqtui.",
   "license": "MIT",
   "private": true,
@@ -15,10 +15,10 @@
     "build": "bun build --compile src/main.ts --outfile dist/hqterm"
   },
   "dependencies": {
-    "@profullstack/hqtui": "^0.10.2"
+    "@profullstack/hqtui": "^0.11.1"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.2",
+    "@types/bun": "^1.4.4",
     "typescript": "^7.0.2"
   }
 }
