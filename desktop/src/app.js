@@ -11,12 +11,13 @@
    * xterm's web-links addon joins natural soft wraps. A few terminal
    * multiplexers redraw wrapped output with cursor positioning instead, which
    * leaves the rows marked as separate lines. Recover URLs across those breaks
-   * when the previous row reaches the right edge and the next starts without
-   * whitespace.
+   * when the previous row reaches the wrap margin and the next row contains
+   * only a small continuation indent.
    */
   function registerHardWrappedWebLinks(term, activate) {
     const urlRegex = /(https?|HTTPS?):[/]{2}[^\s"'!*(){}|\\\^<>`]*[^\s"':,.!?{}|\\\^~\[\]`()<>]/g;
     const maxLength = 2048;
+    const maxContinuationIndent = 8;
 
     function readLine(line) {
       let text = "";
@@ -38,13 +39,16 @@
         columns.pop();
         columnEnds.pop();
       }
-      return { text, columns, columnEnds };
+      return { text, columns, columnEnds, leadingSpaces: text.match(/^ */)[0].length };
     }
 
     function joinType(next, previousText, nextText) {
       if (next.isWrapped) return "soft";
-      if (!previousText.text || !nextText.text || /^\s/.test(nextText.text)) return undefined;
-      if (previousText.columnEnds.at(-1) === term.cols && !/\s$/.test(previousText.text)) return "hard";
+      const continuation = nextText.text.slice(nextText.leadingSpaces);
+      if (!previousText.text || !continuation || /^\s/.test(continuation)) return undefined;
+      if (nextText.leadingSpaces > maxContinuationIndent) return undefined;
+      const wrapMargin = Math.max(1, Math.min(term.cols, 80) - 2);
+      if (previousText.columnEnds.at(-1) >= wrapMargin && !/\s$/.test(previousText.text)) return "hard";
       return undefined;
     }
 
@@ -55,7 +59,7 @@
         const currentLine = buffer.getLine(currentIndex);
         if (!currentLine) return callback(undefined);
 
-        let current = { index: currentIndex, line: currentLine, ...readLine(currentLine), fromPrevious: undefined };
+        let current = { index: currentIndex, line: currentLine, ...readLine(currentLine), fromPrevious: undefined, skipLeading: 0 };
         let rows = [current];
         let length = current.text.length;
 
@@ -66,8 +70,9 @@
           const first = rows[0];
           const kind = joinType(first.line, previousText, first);
           if (!kind || length + previousText.text.length > maxLength) break;
-          rows.unshift({ index: first.index - 1, line: previousLine, ...previousText, fromPrevious: undefined });
+          rows.unshift({ index: first.index - 1, line: previousLine, ...previousText, fromPrevious: undefined, skipLeading: 0 });
           rows[1].fromPrevious = kind;
+          rows[1].skipLeading = kind === "hard" ? rows[1].leadingSpaces : 0;
           length += previousText.text.length;
         }
 
@@ -78,7 +83,7 @@
           const nextText = readLine(nextLine);
           const kind = joinType(nextLine, previous, nextText);
           if (!kind || length + nextText.text.length > maxLength) break;
-          rows.push({ index: previous.index + 1, line: nextLine, ...nextText, fromPrevious: kind });
+          rows.push({ index: previous.index + 1, line: nextLine, ...nextText, fromPrevious: kind, skipLeading: kind === "hard" ? nextText.leadingSpaces : 0 });
           length += nextText.text.length;
         }
 
@@ -89,20 +94,23 @@
         for (const row of rows) {
           if (row.fromPrevious) boundaries.push({ offset: text.length, kind: row.fromPrevious });
           row.start = text.length;
-          text += row.text;
+          row.linkText = row.text.slice(row.skipLeading);
+          row.linkColumns = row.columns.slice(row.skipLeading);
+          row.linkColumnEnds = row.columnEnds.slice(row.skipLeading);
+          text += row.linkText;
         }
 
         const positionAt = (offset) => {
-          const row = rows.find((entry) => offset >= entry.start && offset < entry.start + entry.text.length);
+          const row = rows.find((entry) => offset >= entry.start && offset < entry.start + entry.linkText.length);
           if (!row) return undefined;
-          return { x: row.columns[offset - row.start], y: row.index };
+          return { x: row.linkColumns[offset - row.start], y: row.index };
         };
         const positionAfter = (offset) => {
           const next = positionAt(offset);
           if (next) return next;
           const last = rows.at(-1);
-          if (offset === last.start + last.text.length && last.columnEnds.length) {
-            return { x: last.columnEnds.at(-1), y: last.index };
+          if (offset === last.start + last.linkText.length && last.linkColumnEnds.length) {
+            return { x: last.linkColumnEnds.at(-1), y: last.index };
           }
           return undefined;
         };
