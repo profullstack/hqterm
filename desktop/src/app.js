@@ -7,6 +7,137 @@
   const $ = (sel) => document.querySelector(sel);
   const MAX_WEBGL = 12;
 
+  /**
+   * xterm's web-links addon joins natural soft wraps. A few terminal
+   * multiplexers redraw wrapped output with cursor positioning instead, which
+   * leaves the rows marked as separate lines. Recover URLs across those breaks
+   * when the previous row reaches the right edge and the next starts without
+   * whitespace.
+   */
+  function registerHardWrappedWebLinks(term, activate) {
+    const urlRegex = /(https?|HTTPS?):[/]{2}[^\s"'!*(){}|\\\^<>`]*[^\s"':,.!?{}|\\\^~\[\]`()<>]/g;
+    const maxLength = 2048;
+
+    function readLine(line) {
+      let text = "";
+      const columns = [];
+      const columnEnds = [];
+      for (let x = 0; x < term.cols; x++) {
+        const cell = line.getCell(x);
+        if (!cell || cell.getWidth() === 0) continue;
+        const width = cell.getWidth();
+        const chars = cell.getChars() || " ";
+        text += chars;
+        for (let i = 0; i < chars.length; i++) {
+          columns.push(x);
+          columnEnds.push(x + width);
+        }
+      }
+      while (text.endsWith(" ")) {
+        text = text.slice(0, -1);
+        columns.pop();
+        columnEnds.pop();
+      }
+      return { text, columns, columnEnds };
+    }
+
+    function joinType(next, previousText, nextText) {
+      if (next.isWrapped) return "soft";
+      if (!previousText.text || !nextText.text || /^\s/.test(nextText.text)) return undefined;
+      if (previousText.columnEnds.at(-1) === term.cols && !/\s$/.test(previousText.text)) return "hard";
+      return undefined;
+    }
+
+    return term.registerLinkProvider({
+      provideLinks(bufferLineNumber, callback) {
+        const buffer = term.buffer.active;
+        const currentIndex = bufferLineNumber - 1;
+        const currentLine = buffer.getLine(currentIndex);
+        if (!currentLine) return callback(undefined);
+
+        let current = { index: currentIndex, line: currentLine, ...readLine(currentLine), fromPrevious: undefined };
+        let rows = [current];
+        let length = current.text.length;
+
+        while (rows[0].index > 0 && length < maxLength) {
+          const previousLine = buffer.getLine(rows[0].index - 1);
+          if (!previousLine) break;
+          const previousText = readLine(previousLine);
+          const first = rows[0];
+          const kind = joinType(first.line, previousText, first);
+          if (!kind || length + previousText.text.length > maxLength) break;
+          rows.unshift({ index: first.index - 1, line: previousLine, ...previousText, fromPrevious: undefined });
+          rows[1].fromPrevious = kind;
+          length += previousText.text.length;
+        }
+
+        while (rows.at(-1).index + 1 < buffer.length && length < maxLength) {
+          const previous = rows.at(-1);
+          const nextLine = buffer.getLine(previous.index + 1);
+          if (!nextLine) break;
+          const nextText = readLine(nextLine);
+          const kind = joinType(nextLine, previous, nextText);
+          if (!kind || length + nextText.text.length > maxLength) break;
+          rows.push({ index: previous.index + 1, line: nextLine, ...nextText, fromPrevious: kind });
+          length += nextText.text.length;
+        }
+
+        if (!rows.some((row) => row.fromPrevious === "hard")) return callback([]);
+
+        let text = "";
+        const boundaries = [];
+        for (const row of rows) {
+          if (row.fromPrevious) boundaries.push({ offset: text.length, kind: row.fromPrevious });
+          row.start = text.length;
+          text += row.text;
+        }
+
+        const positionAt = (offset) => {
+          const row = rows.find((entry) => offset >= entry.start && offset < entry.start + entry.text.length);
+          if (!row) return undefined;
+          return { x: row.columns[offset - row.start], y: row.index };
+        };
+        const positionAfter = (offset) => {
+          const next = positionAt(offset);
+          if (next) return next;
+          const last = rows.at(-1);
+          if (offset === last.start + last.text.length && last.columnEnds.length) {
+            return { x: last.columnEnds.at(-1), y: last.index };
+          }
+          return undefined;
+        };
+
+        const links = [];
+        const regex = new RegExp(urlRegex.source, urlRegex.flags);
+        let match;
+        while ((match = regex.exec(text))) {
+          const endOffset = match.index + match[0].length;
+          if (!boundaries.some((boundary) => boundary.kind === "hard" && match.index < boundary.offset && endOffset > boundary.offset)) continue;
+          let parsed;
+          try {
+            parsed = new URL(match[0]);
+          } catch {
+            continue;
+          }
+          if (!/^https?:$/.test(parsed.protocol)) continue;
+          const start = positionAt(match.index);
+          const end = positionAfter(endOffset);
+          if (!start || !end) continue;
+          links.push({
+            range: {
+              start: { x: start.x + 1, y: start.y + 1 },
+              // xterm represents the end as an exclusive column boundary.
+              end: { x: end.x, y: end.y + 1 },
+            },
+            text: match[0],
+            activate: (event, uri) => activate(event, uri),
+          });
+        }
+        callback(links);
+      },
+    });
+  }
+
   const init = await hq.init();
   const MAC = init.platform === "darwin";
   const INSTALL = init.platform === "win32" ? "irm https://hqterm.sh/install.ps1 | iex" : "curl -fsSL https://hqterm.sh/install | sh";
@@ -110,6 +241,7 @@
     const unicode = new Unicode11Addon.Unicode11Addon();
     term.loadAddon(unicode);
     term.unicode.activeVersion = "11";
+    registerHardWrappedWebLinks(term, (_event, uri) => hq.openUrl(uri));
     term.loadAddon(new WebLinksAddon.WebLinksAddon((_e, uri) => hq.openUrl(uri)));
     term.onData((d) => {
       if (rt.exited) {
